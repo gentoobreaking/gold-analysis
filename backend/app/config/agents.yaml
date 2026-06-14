@@ -1,0 +1,142 @@
+# OpenClaw Agent 配置
+
+# 黃金分析系統的 Agent 配置
+# 每個 Agent 都有獨立的模型參數
+
+agents:
+  # ============ 數據收集 Agent ============
+  data_collector:
+    name: "gold_data_collector"
+    role: "data_collector"
+    # 模型配置 - 從環境變量覆蓋
+    model: ${OPENCLAW_MODEL:-qclaw/modelroute}
+    temperature: 0.3
+    max_tokens: 2000
+    # 數據源配置
+    sources:
+      - metalvaluekit
+      - goldapi
+    cache_ttl: 300  # 秒
+  
+  # ============ 技術分析 Agent ============
+  technical_analyst:
+    name: "gold_technical_analyst"
+    role: "technical_analyst"
+    model: ${OPENCLAW_MODEL:-qclaw/modelroute}
+    temperature: 0.5
+    max_tokens: 4000
+    # 技術指標配置
+    indicators:
+      - ma
+      - ema
+      - rsi
+      - macd
+      - bollinger_bands
+      - atr
+    periods:
+      short: 10
+      medium: 20
+      long: 50
+      very_long: 200
+  
+  # ============ 基本面分析 Agent ============
+  fundamental_analyst:
+    name: "gold_fundamental_analyst"
+    role: "fundamental_analyst"
+    model: ${OPENCLAW_MODEL:-qclaw/modelroute}
+    temperature: 0.7
+    max_tokens: 4000
+    # 分析維度
+    dimensions:
+      - macro_economics
+      - currency
+      - interest_rates
+      - inflation
+      - geopolitical
+      - market_sentiment
+  
+  # ============ 風險評估 Agent ============
+  risk_assessor:
+    name: "gold_risk_assessor"
+    role: "risk_assessor"
+    model: ${OPENCLAW_MODEL:-qclaw/modelroute}
+    temperature: 0.4
+    max_tokens: 2000
+    # 風險維度
+    risk_factors:
+      - volatility
+      - liquidity
+      - correlation
+      - macro_risk
+      - sentiment_risk
+    # 風險閾值
+    thresholds:
+      max_volatility: 25
+      max_drawdown: 15
+  
+  # ============ 決策推薦 Agent ============
+  decision_maker:
+    name: "gold_decision_maker"
+    role: "decision_maker"
+    model: ${OPENCLAW_MODEL:-qclaw/modelroute}
+    temperature: 0.6
+    max_tokens: 4000
+    # 決策類型
+    decision_types:
+      - buy
+      - sell
+      - hold
+      - watch
+    # 置信度閾值
+    confidence:
+      high: 0.75
+      medium: 0.50
+      low: 0.25
+
+# ============ 全局配置 ============
+
+global:
+  # 默認模型配置
+  default_model: ${OPENCLAW_MODEL:-qclaw/modelroute}
+  default_temperature: 0.5
+  default_max_tokens: 2000
+  
+  # 執行配置
+  execution:
+    timeout: 300  # 秒
+    retry_count: 3
+    parallel_execution: true
+  
+  # 日誌配置
+  logging:
+    level: INFO
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# ============ Pipeline 配置 ============
+
+pipeline:
+  # 執行順序
+  stages:
+    - data_collection
+    - technical_analysis
+    - fundamental_analysis
+    - risk_assessment
+    - decision_recommendation
+  
+  # 階段配置
+  stage_config:
+    data_collection:
+      required: true
+      timeout: 30
+    technical_analysis:
+      required: true
+      timeout: 60
+    fundamental_analysis:
+      required: true
+      timeout: 60
+    risk_assessment:
+      required: true
+      timeout: 45
+    decision_recommendation:
+      required: true
+      timeout: 30

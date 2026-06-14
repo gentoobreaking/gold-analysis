@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "黃金分析系統",
+    "tagline": "黃金價格多維度決策輔助"
+  },
+  "nav": {
+    "dashboard": "儀表板",
+    "portfolio": "投資組合",
+    "analysis": "分析",
+    "alerts": "告警",
+    "reports": "報告",
+    "settings": "設定"
+  },
+  "dashboard": {
+    "title": "儀表板",
+    "goldPrice": "黃金現價",
+    "dxyIndex": "美元指數",
+    "fedRate": "聯準會利率",
+    "decision": "交易決策",
+    "signal": "信號強度",
+    "confidence": "信心度",
+    "recommendation": "推薦操作",
+    "recentDecisions": "近期決策",
+    "portfolioOverview": "組合概覽",
+    "alertsActive": "活躍告警",
+    "triggeredToday": "今日觸發"
+  },
+  "decision": {
+    "buy": "買入",
+    "sell": "賣出",
+    "hold": "觀望",
+    "watch": "關注",
+    "strength": "信號強度",
+    "reason": "理由",
+    "executed": "已執行",
+    "pending": "待執行",
+    "priceTarget": "目標價",
+    "stopLoss": "止損價"
+  },
+  "portfolio": {
+    "title": "投資組合",
+    "create": "新建組合",
+    "name": "組合名稱",
+    "initialCapital": "初始資金",
+    "currentValue": "當前市值",
+    "totalReturn": "總收益率",
+    "unrealizedPnl": "未實現損益",
+    "positions": "持倉明細",
+    "asset": "資產",
+    "quantity": "數量",
+    "avgCost": "平均成本",
+    "currentPrice": "當前價格",
+    "marketValue": "市值",
+    "pnl": "損益",
+    "cash": "現金餘額",
+    "addPosition": "新增持倉",
+    "removePosition": "移除持倉",
+    "delete": "刪除組合"
+  },
+  "alerts": {
+    "title": "價格告警",
+    "create": "新建告警",
+    "priceAbove": "價格高於",
+    "priceBelow": "價格低於",
+    "indicatorCross": "指標交叉",
+    "signalAlert": "信號告警",
+    "targetPrice": "目標價格",
+    "active": "活躍",
+    "triggered": "已觸發",
+    "inactive": "已停用",
+    "noAlerts": "暫無告警"
+  },
+  "report": {
+    "title": "報告中心",
+    "daily": "日報",
+    "weekly": "週報",
+    "monthly": "月報",
+    "generate": "生成報告",
+    "exportPdf": "導出 PDF",
+    "exportExcel": "導出 Excel",
+    "download": "下載"
+  },
+  "backtest": {
+    "title": "回測系統",
+    "startDate": "起始日期",
+    "endDate": "結束日期",
+    "initialCapital": "初始資金",
+    "runBacktest": "執行回測",
+    "totalReturn": "總收益率",
+    "annualizedReturn": "年化收益率",
+    "winRate": "勝率",
+    "maxDrawdown": "最大回撤",
+    "sharpeRatio": "夏普比率",
+    "sortinoRatio": "索提諾比率",
+    "totalTrades": "總交易次數",
+    "profitFactor": "盈虧比"
+  },
+  "common": {
+    "loading": "載入中...",
+    "error": "發生錯誤",
+    "success": "成功",
+    "cancel": "取消",
+    "confirm": "確認",
+    "save": "儲存",
+    "delete": "刪除",
+    "edit": "編輯",
+    "close": "關閉",
+    "noData": "暫無資料",
+    "currency": "$"
+  },
+  "settings": {
+    "title": "設定",
+    "language": "語言",
+    "languageZh": "繁體中文",
+    "languageEn": "English",
+    "notifications": "通知設定",
+    "email": "郵件通知",
+    "push": "推送通知",
+    "webhook": "Webhook"
+  }
+}

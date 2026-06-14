@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "Gold Analysis System",
+    "tagline": "Multi-dimensional Gold Price Decision Support"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "portfolio": "Portfolio",
+    "analysis": "Analysis",
+    "alerts": "Alerts",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "goldPrice": "Gold Spot Price",
+    "dxyIndex": "US Dollar Index",
+    "fedRate": "Fed Interest Rate",
+    "decision": "Trading Decision",
+    "signal": "Signal Strength",
+    "confidence": "Confidence",
+    "recommendation": "Recommendation",
+    "recentDecisions": "Recent Decisions",
+    "portfolioOverview": "Portfolio Overview",
+    "alertsActive": "Active Alerts",
+    "triggeredToday": "Triggered Today"
+  },
+  "decision": {
+    "buy": "Buy",
+    "sell": "Sell",
+    "hold": "Hold",
+    "watch": "Watch",
+    "strength": "Signal Strength",
+    "reason": "Reason",
+    "executed": "Executed",
+    "pending": "Pending",
+    "priceTarget": "Target Price",
+    "stopLoss": "Stop Loss"
+  },
+  "portfolio": {
+    "title": "Investment Portfolio",
+    "create": "Create Portfolio",
+    "name": "Portfolio Name",
+    "initialCapital": "Initial Capital",
+    "currentValue": "Current Value",
+    "totalReturn": "Total Return",
+    "unrealizedPnl": "Unrealized P&L",
+    "positions": "Positions",
+    "asset": "Asset",
+    "quantity": "Quantity",
+    "avgCost": "Avg Cost",
+    "currentPrice": "Current Price",
+    "marketValue": "Market Value",
+    "pnl": "P&L",
+    "cash": "Cash Balance",
+    "addPosition": "Add Position",
+    "removePosition": "Remove Position",
+    "delete": "Delete Portfolio"
+  },
+  "alerts": {
+    "title": "Price Alerts",
+    "create": "Create Alert",
+    "priceAbove": "Price Above",
+    "priceBelow": "Price Below",
+    "indicatorCross": "Indicator Cross",
+    "signalAlert": "Signal Alert",
+    "targetPrice": "Target Price",
+    "active": "Active",
+    "triggered": "Triggered",
+    "inactive": "Inactive",
+    "noAlerts": "No alerts"
+  },
+  "report": {
+    "title": "Reports",
+    "daily": "Daily Report",
+    "weekly": "Weekly Report",
+    "monthly": "Monthly Report",
+    "generate": "Generate Report",
+    "exportPdf": "Export PDF",
+    "exportExcel": "Export Excel",
+    "download": "Download"
+  },
+  "backtest": {
+    "title": "Backtest System",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "initialCapital": "Initial Capital",
+    "runBacktest": "Run Backtest",
+    "totalReturn": "Total Return",
+    "annualizedReturn": "Annualized Return",
+    "winRate": "Win Rate",
+    "maxDrawdown": "Max Drawdown",
+    "sharpeRatio": "Sharpe Ratio",
+    "sortinoRatio": "Sortino Ratio",
+    "totalTrades": "Total Trades",
+    "profitFactor": "Profit Factor"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "noData": "No data",
+    "currency": "$"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languageZh": "繁體中文",
+    "languageEn": "English",
+    "notifications": "Notification Settings",
+    "email": "Email Notification",
+    "push": "Push Notification",
+    "webhook": "Webhook"
+  }
+}
