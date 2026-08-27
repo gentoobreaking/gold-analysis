@@ -14,7 +14,7 @@ import SeasonalityPage from '@components/pages/SeasonalityPage';
 import ContractsPage from '@components/pages/ContractsPage';
 import News from '@components/pages/News';
 import History from '@components/pages/History';
-import Settings from '@components/pages/Settings';
+import MLOperations from '@components/pages/MLOperations';
 
 function App() {
   return (
@@ -30,7 +30,7 @@ function App() {
         <Route path="/seasonality" element={<SeasonalityPage />} />
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/history" element={<History />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/ml-ops" element={<MLOperations />} />
       </Routes>
     </MainLayout>
   );

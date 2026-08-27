@@ -56,7 +56,6 @@ export const fetchDecision = async (): Promise<DecisionResponse> => {
 };
 
 // ── 技術分析 API ─────────────────────────────────────────────────────────────
-
 export interface TechnicalIndicator {
   name: string;
   value: number | null;
@@ -98,4 +97,51 @@ export const fetchTechnicals = async (
   );
   return resp.data;
 };
+
+// ── ML 運維 API ────────────────────────────────────────────────────────────────
+export interface MLOperationsMonitorResponse {
+  alerts: unknown[];
+  drift: unknown;
+  health: unknown;
+}
+
+export interface MLOperationsRetrainResponse {
+  retrained: boolean;
+  reason?: string;
+}
+
+export interface MLOperationsABAssignResponse {
+  experiment_id: string;
+  variant: string;
+  user_id: string;
+  symbol: string;
+}
+
+export interface MLOperationsExecuteResponse {
+  executed: boolean;
+  success: boolean;
+  response?: unknown;
+  event?: unknown;
+}
+
+export const fetchMLMonitor = async (prices: unknown[]): Promise<MLOperationsMonitorResponse> => {
+  const { data } = await api.post('/api/ml/monitor', { prices });
+  return data;
+};
+
+export const fetchMLRetrain = async (prices: unknown[], trigger?: string, min_samples = 200): Promise<MLOperationsRetrainResponse> => {
+  const { data } = await api.post('/api/ml/retrain', { prices, trigger, min_samples });
+  return data;
+};
+
+export const fetchMLABAssign = async (user_id: string, symbol = 'XAUUSD', experiment_id = 'default'): Promise<MLOperationsABAssignResponse> => {
+  const { data } = await api.post('/api/ml/ab/assign', { user_id, symbol, experiment_id });
+  return data;
+};
+
+export const fetchMLExecute = async (decision: unknown): Promise<MLOperationsExecuteResponse> => {
+  const { data } = await api.post('/api/trading/execute', decision);
+  return data;
+};
+
 export { api };
