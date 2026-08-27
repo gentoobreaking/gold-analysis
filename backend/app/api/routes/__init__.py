@@ -2,6 +2,16 @@
 Routes package
 """
 
-from . import auth, prices, decisions, backtest, alerts, community
+from fastapi import APIRouter
 
-__all__ = ["auth", "prices", "decisions", "backtest", "alerts", "community"]
+router = APIRouter()
+
+
+@router.get("/status")
+async def get_status():
+    """Get system status"""
+    return {"status": "ok", "message": "API is running"}
+
+from . import auth, prices, decisions, backtest, alerts
+
+__all__ = ["router", "get_status", "auth", "prices", "decisions", "backtest", "alerts"]
