@@ -16,10 +16,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.ml.ops import run_monitor, run_retrain
+from app.ml.ab_testing import ABTestEngine
 from app.trading.execution import execute_decision
 from app.trading.trade_logger import TradeLogger
 from app.ml.model_integration import Decision
-
 ml_router = APIRouter(prefix="/api/ml", tags=["ml-ops"])
 trade_router = APIRouter(prefix="/api/trading", tags=["trading-ops"])
 
@@ -46,9 +46,58 @@ class DecisionIn(BaseModel):
     log_path: Optional[str] = None
 
 
+# ABTestEngine 實例（單例模式）
+ab_test_engine = ABTestEngine()
+
+# 建立一個預設實驗（使用固定 ID）
+if "default" not in ab_test_engine.experiments:
+    from app.ml.ab_testing import ExperimentConfig
+    default_config = ExperimentConfig(
+        name="default_ml_model",
+        variants=["model_a", "model_b"],
+        traffic_split=[0.5, 0.5],
+    )
+    # 使用固定 ID "default"
+    ab_test_engine.experiments["default"] = default_config
+
 def _to_df(prices: List[Dict[str, Any]]) -> pd.DataFrame:
     return pd.DataFrame(prices)
 
+
+class ABAssignIn(BaseModel):
+    user_id: str
+    symbol: str = "XAUUSD"
+    experiment_id: Optional[str] = "default"
+
+
+@ml_router.post("/ab/assign")
+def ab_assign(payload: ABAssignIn) -> Dict[str, Any]:
+    """Assign a variant for A/B test based on deterministic split."""
+    exp_id = payload.experiment_id or "default"
+    config = ab_test_engine.experiments.get(exp_id)
+    if not config:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Experiment {exp_id} not found")
+    
+    # 確定性分流：基於 user_id hash
+    import hashlib
+    hash_val = int(hashlib.md5(f"{exp_id}:{payload.user_id}".encode()).hexdigest(), 16)
+    rnd = hash_val / (2**128)
+    cumulative = 0.0
+    for variant, weight in zip(config.variants, config.traffic_split):
+        cumulative += weight
+        if rnd <= cumulative:
+            assigned = variant
+            break
+    else:
+        assigned = config.variants[-1]
+    
+    return {
+        "experiment_id": exp_id,
+        "variant": assigned,
+        "user_id": payload.user_id,
+        "symbol": payload.symbol,
+    }
 
 @ml_router.post("/monitor")
 def monitor(payload: PricesIn) -> Dict[str, Any]:

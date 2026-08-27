@@ -11,7 +11,11 @@ import sqlite3
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 class Settings(BaseSettings):
     """Application settings"""
 
@@ -19,18 +23,87 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = True
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"]
-
     class Config:
-        env_file = ".env"
         extra = "ignore"
 
-
 settings = Settings()
+
+
+scheduler = AsyncIOScheduler()
+
+
+async def run_monitor_job():
+    """排程執行監控快照"""
+    try:
+        from app.ml.ops import run_monitor
+        import pandas as pd
+        import numpy as np
+        # 生成模擬價格資料
+        idx = pd.date_range(end=datetime.utcnow(), periods=100, freq="D")
+        close = 1900 + np.cumsum(np.random.normal(0, 4, 100))
+        prices = pd.DataFrame({
+            "date": idx,
+            "open": close + 1,
+            "high": close + 5,
+            "low": close - 5,
+            "close": close,
+            "volume": np.random.randint(1000, 5000, 100),
+        })
+        result = run_monitor(prices)
+        print(f"[排程] run_monitor: {result}")
+    except Exception as e:
+        print(f"[排程] run_monitor 失敗: {e}")
+
+
+async def run_retrain_job():
+    """排程檢查是否需要重訓"""
+    try:
+        from app.ml.ops import run_retrain
+        import pandas as pd
+        import numpy as np
+        idx = pd.date_range(end=datetime.utcnow(), periods=100, freq="D")
+        close = 1900 + np.cumsum(np.random.normal(0, 4, 100))
+        prices = pd.DataFrame({
+            "date": pd.date_range(end=datetime.utcnow(), periods=100, freq="D"),
+            "open": 1900 + np.cumsum(np.random.normal(0, 4, 100)) + 1,
+            "high": 1900 + np.cumsum(np.random.normal(0, 4, 100)) + 5,
+            "low": 1900 + np.cumsum(np.random.normal(0, 4, 100)) - 5,
+            "close": 1900 + np.cumsum(np.random.normal(0, 4, 100)),
+            "volume": np.random.randint(1000, 5000, 100),
+        })
+        result = run_retrain(prices, trigger="cron")
+        print(f"[排程] run_retrain: {result}")
+    except Exception as e:
+        print(f"[排程] run_retrain 失敗: {e}")
+
+
+scheduler = AsyncIOScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 啟動排程器
+    scheduler.add_job(
+        run_monitor_job,
+        IntervalTrigger(minutes=15),
+        id="run_monitor",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        run_retrain_job,
+        CronTrigger(hour=2, minute=0),
+        id="run_retrain",
+        replace_existing=True,
+    )
+    scheduler.start()
+    yield
+    # 關閉排程器
+    scheduler.shutdown()
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="黃金價格多維度決策輔助系統 - 核心功能",
+    lifespan=lifespan,
 )
 
 # CORS middleware
