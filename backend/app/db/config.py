@@ -27,11 +27,10 @@ class Settings(BaseSettings):
     influxdb_org: str = "gold-analysis"
     influxdb_bucket: str = "market-data"
     
-    # Redis
-    redis_url: str = "redis://localhost:6379/0"
-    
     class Config:
         env_file = ".env"
+        extra = "ignore"
+    
 
 
 # Global settings instance

@@ -29,6 +29,7 @@ class ValidationSettings(BaseSettings):
     class Config:
         env_file = ".env"
         env_prefix = "VALIDATION_"
+        extra = "ignore"
 
 
 class CleaningSettings(BaseSettings):
@@ -52,6 +53,7 @@ class CleaningSettings(BaseSettings):
     class Config:
         env_file = ".env"
         env_prefix = "CLEANING_"
+        extra = "ignore"
 
 
 @lru_cache()

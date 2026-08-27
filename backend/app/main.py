@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()
@@ -519,6 +520,6 @@ async def get_contracts():
         "fetched_at": now.strftime("%Y/%m/%d %H:%M"),
     }
 # ── Merged advanced ops triggers (approach 2) ──────────────────────────────
-from app.routers.advanced_ops import router as _ml_ops_router, trade_router as _trade_router
+from app.routers.advanced_ops import ml_router as _ml_ops_router, trade_router as _trade_router
 app.include_router(_ml_ops_router)
 app.include_router(_trade_router)
