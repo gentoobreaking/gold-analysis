@@ -8,7 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from .order_types import OrderRequest, OrderResponse, OrderSide, OrderType, TimeInForce
+from .order_types import OrderSide, OrderType, TimeInForce
+from .exchange_interface import OrderRequest, OrderResponse
 from .exchange_client import ExchangeClient
 
 logger = logging.getLogger(__name__)

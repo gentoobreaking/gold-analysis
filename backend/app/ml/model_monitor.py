@@ -115,3 +115,41 @@ class ModelHealthChecker:
         }
         self.logger.info("模型健康檢查完成")
         return health
+class ModelMonitor:
+    """High-level model monitor: drift + health snapshot.
+
+    Wraps :class:`DriftDetector` and :class:`ModelHealthChecker` and exposes a
+    single ``snapshot`` the retraining orchestrator consumes.
+    """
+
+    def __init__(self, drift_threshold: float = 0.05, health_checker: Optional[ModelHealthChecker] = None):
+        self.drift = DriftDetector(threshold=drift_threshold)
+        self.health = health_checker or ModelHealthChecker()
+        self._reference_fit = False
+
+    def fit_reference(self, prices: pd.DataFrame) -> None:
+        fe = FeatureEngineer()
+        data = fe.fit_transform(prices)
+        feats = data.drop(columns=["date", "label"], errors="ignore")
+        self.drift.fit_reference(feats)
+        self._reference_fit = True
+
+    def snapshot(self, prices: Optional[pd.DataFrame] = None) -> Dict[str, Any]:
+        alerts: List[str] = []
+        out: Dict[str, Any] = {"alerts": alerts, "drift": {}, "health": {}}
+        if prices is None:
+            return out
+        fe = FeatureEngineer()
+        data = fe.fit_transform(prices)
+        feats = data.drop(columns=["date", "label"], errors="ignore")
+        if self._reference_fit:
+            drifted = self.drift.check(feats)
+            out["drift"] = {k: bool(v) for k, v in drifted.items()}
+            for feat, is_drifted in drifted.items():
+                if is_drifted:
+                    alerts.append(f"data_drift:{feat}")
+        try:
+            out["health"] = self.health.health_check(data, label_key="label")
+        except Exception as exc:  # noqa: BLE001
+            out["health"] = {"error": str(exc)}
+        return out

@@ -106,3 +106,104 @@ class ModelAPI:
             "report": report.print_report(),
             "metrics": report.metrics,
         }
+from dataclasses import dataclass, field
+
+import pandas as pd
+
+ACTION_NAMES = {-1: "SELL", 0: "HOLD", 1: "BUY"}
+
+
+@dataclass
+class Decision:
+    """A structured trading decision produced by the integration layer."""
+
+    action: str
+    signal: int
+    probability: float
+    confidence: float
+    suggested_position_pct: float
+    model_version: Optional[str]
+    model_type: Optional[str]
+    as_of: Optional[str] = None
+    top_features: List[Dict[str, Any]] = field(default_factory=list)
+    notes: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "action": self.action,
+            "signal": self.signal,
+            "probability": self.probability,
+            "confidence": self.confidence,
+            "suggested_position_pct": self.suggested_position_pct,
+            "model_version": self.model_version,
+            "model_type": self.model_type,
+            "as_of": self.as_of,
+            "top_features": self.top_features,
+            "notes": self.notes,
+        }
+
+
+class DecisionEngine:
+    """Integrate the latest ML model into an actionable decision (core API)."""
+
+    def __init__(self, trainer: Optional[ModelTrainer] = None, max_position_pct: float = 100.0):
+        self.trainer = trainer
+        self.max_position_pct = max_position_pct
+
+    def decide(self, prices: pd.DataFrame, trainer: Optional[ModelTrainer] = None) -> Decision:
+        trainer = trainer or self.trainer
+        if trainer is None:
+            return self._fallback("no trainer configured")
+        try:
+            model = trainer.load_latest()
+        except Exception as exc:  # noqa: BLE001
+            return self._fallback(f"model load failed: {exc}")
+        try:
+            fe = FeatureEngineer()
+            data = fe.fit_transform(prices)
+            feat_names = [c for c in fe.get_feature_names() if c in data.columns]
+            if not feat_names or data.empty:
+                return self._fallback("no features produced")
+            X = data[feat_names].tail(1)
+            pred = trainer.predict(X)
+            signal = int(pred[0])
+            proba = trainer.predict_proba(X)[0] if hasattr(trainer, "predict_proba") else None
+            confidence = float(max(proba)) if proba is not None else 0.5
+            action = ACTION_NAMES.get(signal, "HOLD")
+            result = trainer.get_result()
+            version = getattr(result, "version", None) if result else None
+            mtype = getattr(result, "model_type", None) if result else None
+            return Decision(
+                action=action,
+                signal=signal,
+                probability=float(confidence),
+                confidence=float(confidence),
+                suggested_position_pct=round(confidence * self.max_position_pct, 2),
+                model_version=version,
+                model_type=mtype,
+                as_of=pd.Timestamp.now().isoformat(),
+                top_features=self._explain(model, feat_names),
+                notes="",
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._fallback(f"decision error: {exc}")
+
+    @staticmethod
+    def _explain(model: Any, feat_names: List[str], top_n: int = 5) -> List[Dict[str, Any]]:
+        importances = getattr(model, "feature_importances_", None)
+        if importances is None or not feat_names:
+            return []
+        pairs = sorted(zip(feat_names, importances), key=lambda kv: kv[1], reverse=True)[:top_n]
+        return [{"feature": f, "importance": float(i)} for f, i in pairs]
+
+    def _fallback(self, reason: str) -> Decision:
+        return Decision(
+            action="HOLD",
+            signal=0,
+            probability=0.0,
+            confidence=0.0,
+            suggested_position_pct=0.0,
+            model_version=None,
+            model_type=None,
+            notes=reason,
+        )
