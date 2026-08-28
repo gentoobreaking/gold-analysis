@@ -1,50 +1,70 @@
 # Gold Analysis Core
 
-黃金價格多維度決策輔助系統 - 核心功能
+黃金價格多維度決策輔助系統 — 核心功能（FastAPI 後端 + React/TS 前端 + 多代理分析管線）
+
+> **規範來源（canonical source）**：所有啟動/運作的程式碼都在 `backend/app/`。
+> 倉庫根目錄的 `agents/`、`data_adapters/`、`db/`、`schedulers/`、`scripts/`、`backend_mvp/`
+> 與 `ml_train_test.py` 是**舊版/實驗性**模組，僅 `ml_train_test.py` 會引用 `backend.app`。
+> 詳見 [`docs/CODEBASE_CONSOLIDATION.md`](docs/CODEBASE_CONSOLIDATION.md)。
 
 ## 專案簡介
 
-Gold Analysis Core 是一個黃金價格多維度決策輔助系統，提供價格分析、趨勢預測、技術指標計算等功能，幫助投資者做出更明智的決策。
+Gold Analysis Core 是一個黃金價格多維度決策輔助系統，提供價格分析、趨勢預測、
+技術指標計算、多代理協作分析、ML 模型訓練/監控、以及（預設關閉的）交易介面卡，
+協助投資者做出更明智的決策。
 
 ## 技術棧
 
-### 後端
-- **框架**: Python 3.9+ / FastAPI
-- **數據處理**: Pandas, NumPy
-- **HTTP 客戶端**: httpx, aiohttp
+### 後端（`backend/app`）
 
-### 前端
-- **框架**: React 18+ / TypeScript
-- **構建工具**: Vite
-- **圖表庫**: TradingView Lightweight Charts
-- **HTTP 客戶端**: Axios
+- **框架**：Python 3.11+ / FastAPI（非同步）
+- **排程**：APScheduler `AsyncIOScheduler`
+- **資料處理**：Pandas, NumPy, SciPy, scikit-learn
+- **ORM / DB**：SQLAlchemy 2.x（async）、asyncpg、InfluxDB client、Redis
+- **HTTP 客戶端**：httpx, aiohttp, requests（交易介面卡用）
+- **認證**：JWT（passlib / PyJWT）+ SlowAPI 速率限制
+- **依賴管理**：`uv` + `pyproject.toml` + `uv.lock`（可重現環境，見 T060）
+
+### 前端（`frontend`）
+
+- **框架**：React 18+ / TypeScript
+- **建構**：Vite
+- **圖表**：TradingView Lightweight Charts
+- **HTTP**：Axios
 
 ### Agent
-- **語言**: Python
-- **平台**: OpenClaw
 
-## 專案結構
+- **語言**：Python（`backend/app/agents/` 內建多代理協調器）
+- 外部編排平台（OpenClaw）由根目錄舊版 `agents/` 處理，已標記 `@deprecated`。
+
+## 專案結構（規範來源 `backend/app`）
 
 ```
 gold-analysis/
-├── backend/                 # Python FastAPI 後端
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py         # FastAPI 主程式
-│   │   ├── api/            # API 路由
-│   │   ├── models/         # 數據模型
-│   │   ├── services/       # 業務邏輯
-│   │   └── agents/         # OpenClaw Agent
-│   ├── requirements.txt    # Python 依賴
-│   └── .env.example        # 環境變數範例
-├── frontend/               # React + Vite 前端
-│   ├── src/
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── tsconfig.json
-├── docs/                   # 文檔
-├── scripts/                # 工具腳本
-├── .gitignore
+├── backend/
+│   ├── app/                    # ★ 唯一規範來源
+│   │   ├── main.py             # FastAPI 主程式 + APScheduler 排程
+│   │   ├── api/                # API 路由 / 中介層 (auth, rate_limit)
+│   │   ├── agents/             # 多代理管線 (base, coordinator, 5 個分析 agent)
+│   │   ├── analysis/           # 績效分析
+│   │   ├── ml/                 # 特徵工程 / 訓練 / 監控 / 再訓練 / ops
+│   │   ├── models/             # SQLAlchemy / Pydantic 模型
+│   │   ├── services/           # 業務邏輯 (price, decision, backtest, notify ...)
+│   │   ├── trading/            # 交易介面卡 (alpaca/exchange) + 風控 + 執行
+│   │   ├── risk/               # 風險指標 / 部位
+│   │   ├── tools/              # DataTools / AnalysisTools
+│   │   ├── realtime/           # WebSocket
+│   │   ├── core/               # config (pydantic-settings) + security (JWT)
+│   │   ├── db/                 # postgres / influxdb / redis
+│   │   └── indicators/         # 技術指標 (MA, RSI, MACD, Bollinger ...)
+│   ├── pyproject.toml          # uv 依賴來源（取代 requirements.txt）
+│   ├── uv.lock                 # 可重現鎖定檔
+│   ├── .python-version         # 3.12
+│   ├── requirements.txt        # 舊版清單（僅供參考）
+│   └── .env.example
+├── frontend/                   # React + Vite
+├── docs/                       # 文件
+├── tasks/                      # 任務書（本機，未納版控）
 └── README.md
 ```
 
@@ -52,117 +72,114 @@ gold-analysis/
 
 ### 環境需求
 
-- Python 3.9+
+- Python 3.11+（以 `uv` 管理，見 `.python-version`）
 - Node.js 18+
-- npm 或 yarn
+- `uv`（`brew install uv` 或 `pipx install uv`）
 
-### 後端設置
+### 後端設置（uv）
 
-1. 創建虛擬環境：
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate  # macOS/Linux
-# 或 venv\Scripts\activate  # Windows
+uv sync                       # 建立 .venv 並安裝 pyproject.toml 鎖定依賴
+cp .env.example .env         # 編輯 .env 填入實際配置
+uv run uvicorn app.main:app --reload
 ```
 
-2. 安裝依賴：
+後端服務將在 <http://localhost:8000> 啟動。
+
+### 執行測試
+
 ```bash
-pip install -r requirements.txt
+cd backend
+uv sync --extra dev          # 安裝 pytest / pytest-asyncio / aiosqlite
+uv run pytest                # 或：.venv/bin/python -m pytest
 ```
 
-3. 配置環境變數：
-```bash
-cp .env.example .env
-# 編輯 .env 文件，填入實際配置
-```
-
-4. 啟動開發服務器：
-```bash
-uvicorn app.main:app --reload
-```
-
-後端服務將在 http://localhost:8000 啟動
+> 注意：請直接用 `uv run` / `.venv/bin/python`，避免沿用外部 `VIRTUAL_ENV`
+> 而載入到錯誤的直譯器（見 T060）。
 
 ### 前端設置
 
-1. 安裝依賴：
 ```bash
 cd frontend
 npm install
+npm run dev                  # http://localhost:5173
 ```
-
-2. 啟動開發服務器：
-```bash
-npm run dev
-```
-
-前端服務將在 http://localhost:5173 啟動
 
 ## 開發指南
 
-### 後端開發
+- API 文件：<http://localhost:8000/docs（Swagger> UI）
+- 健康檢查：<http://localhost:8000/health>
+- 排程（`run_monitor` / `run_retrain`）使用 `price_history.local_buy` 真實資料，
+  資料不足時自動跳過（graceful skip）。
 
-- API 文檔：http://localhost:8000/docs (Swagger UI)
-- 健康檢查：http://localhost:8000/health
+## 認證與速率限制
 
-### 前端開發
+- **JWT 中介層**：`app/api/middleware/auth.py` + `app/core/security.py`
+  （`create_access_token` / `HTTPBearer`）。登入端點在 `app/api/routes/auth.py`。
+- **速率限制**：`app/api/middleware/rate_limit.py`（SlowAPI）。
+- 受保護的路由需要 `Authorization: Bearer <token>`。
 
-- 開發服務器：http://localhost:5173
-- 構建生產版本：`npm run build`
-- 預覽生產版本：`npm run preview`
+## API 端點（部分）
 
-## API 端點
+- `GET /` — 服務資訊
+- `GET /health` — 健康檢查
+- `POST /api/auth/login` — 取得 JWT
+- `GET /api/status` — 系統狀態
+- `GET /api/prices/...` — 價格資料
+- `GET /api/decisions/...` — 決策建議
+- `GET /api/alerts/...` — 告警
+- `POST /api/backtest/...` — 回測（見 `app/api/routes/backtest.py`）
+- （更多端點見 `app/api/routes/`）
 
-### 基礎端點
-- `GET /` - 根端點，返回服務信息
-- `GET /health` - 健康檢查
+## 交易介面卡（預設關閉）
 
-### API 路由
-- `GET /api/status` - 系統狀態
+交易功能預設**完全關閉**，需顯式啟用：
 
-（更多端點將在後續開發中添加）
+- `trading_enabled=false`（預設）→ 任何下單直接回傳 `trading_disabled`。
+- `trading_dry_run=true`（預設）→ 下單僅模擬，不真正送出。
+- 實單模式另有 `RiskRuleEngine` 斷路器把關（見 `app/trading/execution.py`、`risk_rules.py`）。
+- 風控阻擋 / 監控異常會透過 `app/services/notify.py` 推送通知（SMTP / Webhook，需配置啟用）。
 
-## 環境變數
+## 環境變數（選要）
 
 | 變數名 | 描述 | 預設值 |
-|--------|------|--------|
-| DATABASE_URL | 數據庫連接 URL | - |
-| GOLD_API_KEY | 黃金數據 API 密鑰 | - |
-| ENVIRONMENT | 運行環境 | development |
-| DEBUG | 調試模式 | true |
-| CORS_ORIGINS | CORS 允許的來源 | http://localhost:5173 |
-| HOST | 服務器主機 | 0.0.0.0 |
-| PORT | 服務器端口 | 8000 |
+| -------- | ------ | -------- |
+| `DATABASE_URL` | 資料庫連接 URL | — |
+| `GOLD_API_KEY` | 黃金數據 API 密鑰 | — |
+| `ENVIRONMENT` | 運行環境 | `development` |
+| `DEBUG` | 調試模式 | `true` |
+| `CORS_ORIGINS` | CORS 允許來源 | `http://localhost:5173` |
+| `HOST` / `PORT` | 服務主機 / 埠 | `0.0.0.0` / `8000` |
+| `TRADING_ENABLED` | 啟用交易（危險） | `false` |
+| `TRADING_DRY_RUN` | 模擬下單（不真正送出） | `true` |
+| `NOTIFY_ENABLED` | 啟用異常通知 | `false` |
+| `NOTIFY_EMAIL_TO` / `SMTP_*` | 郵件通知設定 | — |
+| `NOTIFY_WEBHOOK_URL` | Webhook 通知 URL | — |
+| `JWT_SECRET_KEY` / `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | JWT 設定 | — |
+
+## 近期重點修復（任務編號）
+
+- **T053** `ml/model_monitor.py`：`_load_latest_model()` 回傳 `(model, latest)` 元組修正。
+- **T054** `main.py` 排程：改用 `price_history.local_buy` 真實資料，不足時 skip。
+- **T055** `trading/execution.py` + `core/config.py`：雙重交易開關（enabled + dry_run）+ 風控斷路器。
+- **T056** 通知：`services/notify.py`（SMTP/Webhook，env-gated）；`data_tools.get_sentiment_data`
+  改抓真實 alternative.me 恐貪指數，失敗降級為 `available=False`。
+- **T057** 雙程式碼庫收斂：根目錄舊模組標記 `@deprecated`，規範來源 = `backend/app`。
+- **T060** 可重現環境：`uv` + `pyproject.toml` + `uv.lock`（Python 3.12）。
 
 ## Git 工作流程
 
-1. 創建功能分支：`git checkout -b feature/功能名稱`
-2. 提交變更：`git commit -m "feat: 描述"`
-3. 推送分支：`git push origin feature/功能名稱`
-4. 創建 Pull Request
+1. 功能分支：`git checkout -b feature/功能名稱`
+2. 提交：`git commit -m "feat: 描述"`
+3. 推送並建立 PR
 
 ---
+
 ## License
 
-本專案採用 **Apache License 2.0** 授權。
+本專案採用 **Apache License 2.0** 授權。僅供個人量化研究與教育用途，不構成投資建議。
 
-- 完整授權條款見 [`LICENSE`](LICENSE)（專案根目錄）
-- Apache-2.0 官方條款：<https://www.apache.org/licenses/LICENSE-2.0>
-- 版權與貢獻者資訊以 LICENSE 檔案為準
-
-> 本專案為研究/模擬用途，授權條款不構成任何投資建議或保證；
-> 使用/修改/再散佈前請詳閱 LICENSE 全文。
-
-本專案僅供個人量化研究與教育用途。資料來源（FinMind、TWSE、TPEX）之使用請遵守各平台之服務條款。
-
-Proprietary - All rights reserved.
-
----
 ## 貢獻指南
 
 歡迎提交 Issue 和 Pull Request。
-
-## 聯繫方式
-
-如有問題或建議，請創建 Issue。
