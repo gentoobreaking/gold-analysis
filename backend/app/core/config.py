@@ -32,6 +32,16 @@ class CoreSettings(BaseSettings):
         default="redis://localhost:6379/0", description="Redis connection URL"
     )
 
+    # Trading safety master switch (T055)
+    trading_enabled: bool = Field(
+        default=False,
+        description="Master kill-switch for live order execution. Must be explicitly True to submit real orders.",
+    )
+    trading_dry_run: bool = Field(
+        default=True,
+        description="When True, orders are simulated/logged but never submitted to the exchange.",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="CORE_",
