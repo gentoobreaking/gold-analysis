@@ -12,6 +12,9 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 from contextlib import asynccontextmanager
+import logging
+import numpy as np
+import pandas as pd
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -28,53 +31,81 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+logger = logging.getLogger(__name__)
+
 
 scheduler = AsyncIOScheduler()
 
 
+async def _fetch_real_price_df(days: int = 400) -> Optional[pd.DataFrame]:
+    """從 price_history 取得真實黃金價格，構造成監控/重訓所需 DataFrame。
+
+    回傳含 date / close / label 的 DataFrame；取數失敗或樣本不足時回傳 None，
+    由呼叫方決定是否跳過本輪（不拋未處理例外）。
+    """
+    conn = None
+    try:
+        conn = _get_db()
+        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        rows = conn.execute(
+            "SELECT timestamp, local_buy FROM price_history "
+            "WHERE metal='gold' AND timestamp >= ? ORDER BY timestamp ASC",
+            (cutoff,),
+        ).fetchall()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[排程] 取得價格資料失敗: %s", exc)
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
+
+    if not rows or len(rows) < 30:
+        logger.warning("[排程] 真實價格資料不足 (%d 筆)，跳過本輪", len(rows) if rows else 0)
+        return None
+
+    df = pd.DataFrame(
+        [{"date": r["timestamp"], "close": float(r["local_buy"])} for r in rows]
+    )
+    # 產生 label：未來 horizon 日報酬方向（與 FeatureEngineer._generate_labels 一致）
+    horizon, threshold = 5, 0.01
+    future_return = df["close"].shift(-horizon) / df["close"] - 1
+    df["label"] = np.select(
+        [future_return > threshold, future_return < -threshold],
+        [1, -1],
+        default=0,
+    )
+    df = df.dropna().reset_index(drop=True)
+    if len(df) < 30:
+        logger.warning("[排程] 有效標註樣本不足，跳過本輪")
+        return None
+    return df
+
+
 async def run_monitor_job():
-    """排程執行監控快照"""
+    """排程執行監控快照（使用真實價格資料）"""
     try:
         from app.ml.ops import run_monitor
-        import pandas as pd
-        import numpy as np
-        # 生成模擬價格資料
-        idx = pd.date_range(end=datetime.utcnow(), periods=100, freq="D")
-        close = 1900 + np.cumsum(np.random.normal(0, 4, 100))
-        prices = pd.DataFrame({
-            "date": idx,
-            "open": close + 1,
-            "high": close + 5,
-            "low": close - 5,
-            "close": close,
-            "volume": np.random.randint(1000, 5000, 100),
-        })
+        prices = await _fetch_real_price_df()
+        if prices is None:
+            return
         result = run_monitor(prices)
-        print(f"[排程] run_monitor: {result}")
-    except Exception as e:
-        print(f"[排程] run_monitor 失敗: {e}")
+        result = {**result, "source": "price_history", "generated_at": datetime.utcnow().isoformat()}
+        logger.info("[排程] run_monitor: %s", result)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[排程] run_monitor 失敗: %s", exc)
 
 
 async def run_retrain_job():
-    """排程檢查是否需要重訓"""
+    """排程檢查是否需要重訓（使用真實價格資料）"""
     try:
         from app.ml.ops import run_retrain
-        import pandas as pd
-        import numpy as np
-        idx = pd.date_range(end=datetime.utcnow(), periods=100, freq="D")
-        close = 1900 + np.cumsum(np.random.normal(0, 4, 100))
-        prices = pd.DataFrame({
-            "date": pd.date_range(end=datetime.utcnow(), periods=100, freq="D"),
-            "open": 1900 + np.cumsum(np.random.normal(0, 4, 100)) + 1,
-            "high": 1900 + np.cumsum(np.random.normal(0, 4, 100)) + 5,
-            "low": 1900 + np.cumsum(np.random.normal(0, 4, 100)) - 5,
-            "close": 1900 + np.cumsum(np.random.normal(0, 4, 100)),
-            "volume": np.random.randint(1000, 5000, 100),
-        })
+        prices = await _fetch_real_price_df()
+        if prices is None:
+            return
         result = run_retrain(prices, trigger="cron")
-        print(f"[排程] run_retrain: {result}")
-    except Exception as e:
-        print(f"[排程] run_retrain 失敗: {e}")
+        logger.info("[排程] run_retrain: %s", result)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[排程] run_retrain 失敗: %s", exc)
 
 
 scheduler = AsyncIOScheduler()
