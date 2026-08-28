@@ -3,14 +3,35 @@
  * 深色主題，顯示即時報價、技術指標摘要、決策建議
  */
 import React, { useEffect, useState } from 'react';
-import { fetchCurrentPrice, fetchDecision, fetchHistory, type PriceResponse, type DecisionResponse } from '@services/api';
+import {
+  fetchCurrentPrice,
+  fetchDecision,
+  fetchHistory,
+  fetchMacroDigest,
+  generateMacroDigest,
+  type PriceResponse,
+  type DecisionResponse,
+  type MacroDigestResponse,
+} from '@services/api';
 
 const Summary: React.FC = () => {
   const [price, setPrice] = useState<PriceResponse | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [history, setHistory] = useState<Array<{ timestamp: string; sell: number; buy: number }>>([]);
+  const [digest, setDigest] = useState<MacroDigestResponse | null>(null);
+  const [genLoading, setGenLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const loadDigest = async () => {
+    try {
+      const d = await fetchMacroDigest();
+      setDigest(d);
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      setError(err?.message ?? '無法載入宏觀摘要');
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -34,6 +55,7 @@ const Summary: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    loadDigest();
   }, []);
 
   // 計算技術指標（參考 Analysis.tsx）
@@ -206,6 +228,45 @@ const Summary: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* LLM 宏觀每日敘事 (T065) */}
+      <div className="bg-slate-700/50 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-white">🤖 黃金宏觀每日敘事</h3>
+          <button
+            onClick={async () => {
+              setGenLoading(true);
+              try {
+                const d = await generateMacroDigest(false);
+                setDigest(d);
+              } catch (e: unknown) {
+                const err = e as { message?: string };
+                setError(err?.message ?? '生成失敗');
+              } finally {
+                setGenLoading(false);
+              }
+            }}
+            disabled={genLoading}
+            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded text-xs transition"
+          >
+            {genLoading ? '生成中…' : '🔄 重新生成'}
+          </button>
+        </div>
+        {digest ? (
+          <div>
+            <div className="text-xs text-gray-400 mb-2">
+              資料時間：{formatTimestamp(digest.generated_at)}{(digest.llm_used ? ' · LLM 生成' : ' · 基礎資料摘要（LLM 未啟用）')}
+            </div>
+            <pre className="whitespace-pre-wrap text-sm text-gray-200 bg-slate-800 rounded-lg p-3 overflow-auto"
+              style={{ fontFamily: 'inherit' }}
+            >
+{digest.markdown}
+            </pre>
+          </div>
+        ) : (
+          <div className="text-gray-400 text-sm">尚無摘要（點擊「重新生成」建立）。</div>
+        )}
+      </div>
 
       {/* 重新整理按鈕 */}
       <button

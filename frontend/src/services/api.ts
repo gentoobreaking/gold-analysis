@@ -261,4 +261,25 @@ export const runPortfolioRisk = async (
   return data;
 };
 
+// ─── T065: LLM 宏觀每日敘事 ─────────────────────────────────────────────
+export interface MacroDigestResponse {
+  generated_at: string;
+  llm_used: boolean;
+  markdown: string;
+  body: string;
+  context: Record<string, unknown>;
+}
+
+export const fetchMacroDigest = async (): Promise<MacroDigestResponse> => {
+  const { data } = await api.get<MacroDigestResponse>('/api/macro/latest');
+  return data;
+};
+
+export const generateMacroDigest = async (
+  push = false,
+): Promise<MacroDigestResponse> => {
+  const { data } = await api.post<MacroDigestResponse>('/api/macro/generate', { push });
+  return data;
+};
+
 export { api };

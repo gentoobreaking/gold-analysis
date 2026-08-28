@@ -632,5 +632,7 @@ app.include_router(_trade_router)
 # 導致回測與投組風險端點在執行期 404）。無前綴者在此給定 /api/backtest。
 from app.api.routes.backtest import router as _backtest_router
 from app.api.routes.portfolio_risk import router as _portfolio_risk_router
+from app.api.routes.macro_digest import router as _macro_digest_router
 app.include_router(_backtest_router, prefix="/api/backtest")
 app.include_router(_portfolio_risk_router)
+app.include_router(_macro_digest_router)

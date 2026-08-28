@@ -57,6 +57,19 @@ class CoreSettings(BaseSettings):
         default=None, description="Webhook URL (Telegram/Discord/Slack compatible)."
     )
 
+    # LLM 宏觀敘事 (T065) — OpenAI-compatible /v1/chat/completions
+    llm_enabled: bool = Field(
+        default=False,
+        description="Enable LLM macro-digest generation. When False the pipeline degrades gracefully.",
+    )
+    llm_api_key: Optional[str] = Field(default=None, description="LLM provider API key.")
+    llm_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description="OpenAI-compatible base URL (e.g. OpenAI, OpenRouter, local vLLM).",
+    )
+    llm_model: str = Field(default="gpt-4o-mini", description="Chat model name.")
+    llm_temperature: float = Field(default=0.3, description="Sampling temperature for the digest.")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="CORE_",
