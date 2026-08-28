@@ -217,4 +217,48 @@ export const runBacktestCompare = async (
   return data;
 };
 
+// ─── T064: 投資組合級風險 ───────────────────────────────────────────────
+export interface CorrelationMatrix {
+  assets: string[];
+  matrix: number[][];
+  valid: boolean;
+}
+
+export interface RiskSampleResponse {
+  assets: string[];
+  correlation: CorrelationMatrix;
+  factor_exposure: Record<string, number>;
+  note: string;
+}
+
+export interface PortfolioRiskRequest {
+  weights: number[];
+  returns: Record<string, number[]>;
+  factor_returns?: Record<string, number[]>;
+  confidence?: number;
+  portfolio_value?: number;
+  method?: 'parametric' | 'cornish_fisher';
+}
+
+export interface PortfolioRiskResponse {
+  correlation: CorrelationMatrix;
+  portfolio_var: number;
+  portfolio_cvar: number;
+  portfolio_vol: number;
+  factor_exposure: Record<string, number>;
+  warnings: string[];
+}
+
+export const fetchRiskSample = async (): Promise<RiskSampleResponse> => {
+  const { data } = await api.get<RiskSampleResponse>('/api/risk/sample');
+  return data;
+};
+
+export const runPortfolioRisk = async (
+  body: PortfolioRiskRequest,
+): Promise<PortfolioRiskResponse> => {
+  const { data } = await api.post<PortfolioRiskResponse>('/api/risk/portfolio', body);
+  return data;
+};
+
 export { api };

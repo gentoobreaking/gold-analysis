@@ -16,6 +16,7 @@ import News from '@components/pages/News';
 import History from '@components/pages/History';
 import MLOperations from '@components/pages/MLOperations';
 import StrategyCompare from '@components/pages/StrategyCompare';
+import RiskDashboard from '@components/pages/RiskDashboard';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Route path="/history" element={<History />} />
         <Route path="/ml-ops" element={<MLOperations />} />
         <Route path="/backtest" element={<StrategyCompare />} />
+        <Route path="/risk" element={<RiskDashboard />} />
       </Routes>
     </MainLayout>
   );
