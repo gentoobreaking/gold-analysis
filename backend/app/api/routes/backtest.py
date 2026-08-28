@@ -19,7 +19,17 @@ from app.api.schemas.backtest import (
     SaveStrategyRequest,
     StrategyResponse,
     StrategyListResponse,
+    WalkForwardRequest,
+    WalkForwardResponse,
+    WalkForwardFold,
+    StrategyComparisonRequest,
+    StrategyComparisonResponse,
+    StrategyComparisonItem,
+    PaperReplayRequest,
+    PaperReplayResponse,
 )
+from app.services.backtest_engine import BacktestEngine, BUILTIN_STRATEGIES
+from app.services.price_data import fetch_price_series
 from app.api.middleware.auth import get_current_active_user
 from app.services.backtest_service import BacktestService
 
@@ -244,3 +254,96 @@ async def compare_strategies(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+
+
+# ── T063: 向量化引擎端點（無 DB / 自帶價格序列）────────────────────────────
+
+@router.post("/walk-forward", response_model=WalkForwardResponse)
+async def walk_forward(request: WalkForwardRequest) -> WalkForwardResponse:
+    """
+    Walk-forward 回測（樣本外驗證）。
+
+    在 in-sample 訓練窗選最佳參數，於 out-of-sample 測試窗驗證，
+    回傳各折最佳參數與樣本外績效，以及平均樣本外 Sharpe 與是否穩健(robust)。
+    """
+    strategy_fn = BUILTIN_STRATEGIES.get(request.strategy_type)
+    if strategy_fn is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"未知策略類型。可選: {', '.join(BUILTIN_STRATEGIES.keys())}",
+        )
+    engine = BacktestEngine()
+    result = engine.walk_forward(
+        prices=request.prices,
+        strategy_fn=strategy_fn,
+        param_grid=request.param_grid,
+        train_days=request.train_days,
+        test_days=request.test_days,
+        step=request.step,
+    )
+    return WalkForwardResponse(
+        folds=[WalkForwardFold(**f) for f in result.get("folds", [])],
+        n_folds=result.get("n_folds", 0),
+        avg_out_of_sample_sharpe=result.get("avg_out_of_sample_sharpe", 0.0),
+        robust=result.get("robust", False),
+        errors=result.get("errors", []),
+    )
+
+
+@router.post("/compare", response_model=StrategyComparisonResponse)
+async def compare_strategies_engine(request: StrategyComparisonRequest) -> StrategyComparisonResponse:
+    """
+    策略比較：對同一段歷史價格，並排比較多個內建策略的績效。
+    """
+    unknown = [s for s in request.strategies if s not in BUILTIN_STRATEGIES]
+    if unknown:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"未知策略: {', '.join(unknown)}。可選: {', '.join(BUILTIN_STRATEGIES.keys())}",
+        )
+    engine = BacktestEngine()
+    strategies = {name: BUILTIN_STRATEGIES[name] for name in request.strategies}
+    raw = engine.compare_strategies(request.prices, strategies)
+    results = {
+        name: StrategyComparisonItem(**item) for name, item in raw.items() if "error" not in item
+    }
+    # 若某策略回傳 error，塞回 errors 欄
+    for name, item in raw.items():
+        if "error" in item:
+            results[name] = StrategyComparisonItem(
+                final_equity=0.0, total_return=0.0, annualized_return=0.0,
+                sharpe_ratio=0.0, sortino_ratio=0.0, max_drawdown=0.0,
+                win_rate=0.0, n_trades=0, errors=[item["error"]],
+            )
+    return StrategyComparisonResponse(results=results)
+
+
+@router.post("/paper-replay", response_model=PaperReplayResponse)
+async def paper_replay(request: PaperReplayRequest) -> PaperReplayResponse:
+    """
+    模擬下單：重放歷史信號序列，對比策略與 buy & hold 基準的實際走勢。
+    """
+    if len(request.prices) != len(request.decision_signals):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="prices 與 decision_signals 長度必須一致",
+        )
+    engine = BacktestEngine()
+    result = engine.paper_replay(request.prices, request.decision_signals)
+    return PaperReplayResponse(
+        strategy=StrategyComparisonItem(**result["strategy"]),
+        buy_and_hold=StrategyComparisonItem(**result["buy_and_hold"]),
+        outperformed=result["outperformed"],
+    )
+
+
+@router.get("/prices")
+async def get_prices(
+    asset: str = Query("GOLD", description="資產代號"),
+    limit: int = Query(400, gt=0, le=2000, description="最多回傳筆數"),
+) -> dict:
+    """
+    取得真實歷史收盤價序列（來自 price_history），供前端回測/比較視圖使用。
+    """
+    dates, closes = fetch_price_series(asset=asset, limit=limit)
+    return {"asset": asset, "dates": dates, "prices": closes, "count": len(closes)}

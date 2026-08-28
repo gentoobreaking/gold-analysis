@@ -15,6 +15,7 @@ import ContractsPage from '@components/pages/ContractsPage';
 import News from '@components/pages/News';
 import History from '@components/pages/History';
 import MLOperations from '@components/pages/MLOperations';
+import StrategyCompare from '@components/pages/StrategyCompare';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/history" element={<History />} />
         <Route path="/ml-ops" element={<MLOperations />} />
+        <Route path="/backtest" element={<StrategyCompare />} />
       </Routes>
     </MainLayout>
   );

@@ -16,6 +16,7 @@ const navItems = [
   { path: '/contracts', label: '合約資訊', icon: '📄' },
   { path: '/news', label: '市場新聞', icon: '📰' },
   { path: '/history', label: '歷史報價', icon: '📜' },
+  { path: '/backtest', label: '策略比較', icon: '🧪' },
   { path: '/settings', label: '系統設定', icon: '⚙️' },
 ];
 

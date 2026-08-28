@@ -103,3 +103,77 @@ class StrategyListResponse(BaseModel):
     """Strategy list response"""
     items: List[StrategyResponse]
     total: int
+
+
+# ── T063: walk-forward / 比較視圖 schemas ─────────────────────────────────────
+
+class WalkForwardRequest(BaseModel):
+    """Walk-forward 回測請求"""
+    strategy_type: str = Field("ma_crossover", description="內建策略: ma_crossover, rsi, macd, combined")
+    prices: List[float] = Field(..., description="歷史收盤價序列（舊→新）")
+    param_grid: List[Dict[str, Any]] = Field(
+        default_factory=lambda: [{"fast": 10, "slow": 30}, {"fast": 20, "slow": 50}, {"fast": 30, "slow": 90}],
+        description="候選參數組合",
+    )
+    train_days: int = Field(120, gt=0)
+    test_days: int = Field(30, gt=0)
+    step: int = Field(30, gt=0)
+
+
+class WalkForwardFold(BaseModel):
+    """單一 walk-forward 折"""
+    train_range: List[int]
+    test_range: List[int]
+    best_params: Dict[str, Any]
+    in_sample_sharpe: float
+    out_of_sample: Dict[str, float]
+
+
+class WalkForwardResponse(BaseModel):
+    """Walk-forward 回測回應"""
+    folds: List[WalkForwardFold]
+    n_folds: int = 0
+    avg_out_of_sample_sharpe: float = 0.0
+    robust: bool = False
+    errors: List[str] = Field(default_factory=list)
+
+
+class StrategyComparisonRequest(BaseModel):
+    """策略比較請求"""
+    prices: List[float] = Field(..., description="歷史收盤價序列（舊→新）")
+    strategies: List[str] = Field(
+        default_factory=lambda: ["ma_crossover", "rsi", "macd", "combined"],
+        description="要比較的內建策略名稱",
+    )
+
+
+class StrategyComparisonItem(BaseModel):
+    """單一策略績效"""
+    final_equity: float
+    total_return: float
+    annualized_return: float
+    sharpe_ratio: float
+    sortino_ratio: float
+    max_drawdown: float
+    win_rate: float
+    n_trades: int
+    equity_curve: List[float] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
+
+
+class StrategyComparisonResponse(BaseModel):
+    """策略比較回應"""
+    results: Dict[str, StrategyComparisonItem]
+
+
+class PaperReplayRequest(BaseModel):
+    """模擬下單(重放)請求"""
+    prices: List[float] = Field(..., description="歷史收盤價序列（舊→新）")
+    decision_signals: List[float] = Field(..., description="歷史信號序列（0/1，與 prices 同長）")
+
+
+class PaperReplayResponse(BaseModel):
+    """模擬下單回應"""
+    strategy: StrategyComparisonItem
+    buy_and_hold: StrategyComparisonItem
+    outperformed: bool

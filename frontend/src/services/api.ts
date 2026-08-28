@@ -170,4 +170,51 @@ export const fetchMLExecute = async (decision: unknown): Promise<MLOperationsExe
   return data;
 };
 
+// ── 回測 / 策略比較 API (T063) ───────────────────────────────────────────────
+
+export interface PriceSeriesResponse {
+  asset: string;
+  dates: string[];
+  prices: number[];
+  count: number;
+}
+
+export interface StrategyComparisonItem {
+  final_equity: number;
+  total_return: number;
+  annualized_return: number;
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  max_drawdown: number;
+  win_rate: number;
+  n_trades: number;
+  equity_curve?: number[];
+  errors?: string[];
+}
+
+export interface StrategyComparisonResponse {
+  results: Record<string, StrategyComparisonItem>;
+}
+
+export const fetchBacktestPrices = async (
+  asset = 'GOLD',
+  limit = 400,
+): Promise<PriceSeriesResponse> => {
+  const { data } = await api.get<PriceSeriesResponse>(
+    `/api/backtest/prices?asset=${encodeURIComponent(asset)}&limit=${limit}`,
+  );
+  return data;
+};
+
+export const runBacktestCompare = async (
+  prices: number[],
+  strategies: string[] = ['ma_crossover', 'rsi', 'macd', 'combined'],
+): Promise<StrategyComparisonResponse> => {
+  const { data } = await api.post<StrategyComparisonResponse>('/api/backtest/compare', {
+    prices,
+    strategies,
+  });
+  return data;
+};
+
 export { api };
