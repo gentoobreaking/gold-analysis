@@ -6,11 +6,9 @@ Model Monitor - 監控已部署模型的運行狀態與數據漂移
 from __future__ import annotations
 
 import logging
-import math
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 import pandas as pd
 
 from .model_trainer import ModelRegistry
@@ -62,11 +60,11 @@ class ModelHealthChecker:
         self.last_checked: Optional[datetime] = None
         self.check_interval = timedelta(minutes=10)
 
-    def _load_latest_model(self) -> Any:
+    def _load_latest_model(self) -> tuple[Any, Dict[str, Any]]:
         latest = self.registry.get_latest()
         if not latest:
             raise RuntimeError("未找到已註冊的模型")
-        return self.registry.load_model(latest["version"], latest["model_name"])
+        return self.registry.load_model(latest["version"], latest["model_name"]), latest
 
     def health_check(self, recent_data: pd.DataFrame, label_key: str = "label") -> Dict[str, Any]:
         """對最近的數據執行完整健康檢查"""
@@ -77,7 +75,7 @@ class ModelHealthChecker:
         self.last_checked = now
         
         # 1. 載入模型
-        model = self._load_latest_model()
+        model, latest = self._load_latest_model()
         
         # 2. 特徵工程（使用相同的 FE 設定）
         fe = FeatureEngineer()
