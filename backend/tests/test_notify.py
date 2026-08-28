@@ -13,14 +13,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from unittest.mock import patch
 
-import app.core.config as config_mod
 from app.core.config import CoreSettings
 from app.services import notify
 
 
 def _set(monkeypatch, **overrides):
     cfg = CoreSettings(**overrides)
-    monkeypatch.setattr(config_mod, "get_core_settings", lambda: cfg)
+    # notify.py imports get_core_settings directly, so patch it where it is used.
+    monkeypatch.setattr(notify, "get_core_settings", lambda: cfg)
     return cfg
 
 

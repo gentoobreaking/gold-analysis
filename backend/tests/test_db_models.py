@@ -5,17 +5,15 @@ that relationships are correctly configured, and that the Pydantic settings
 for the database connection are loadable.
 """
 
-import asyncio
 import pytest
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from app.db.config import Base, Settings
+from app.models.alert import Alert, AlertType
+from app.models.decision import Decision, DecisionSource, DecisionType
+from app.models.portfolio import Portfolio
+from app.models.portfolio_holding import PortfolioHolding
+from app.models.user import User
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-
-from backend.app.db.config import Settings, Base, get_postgres_engine
-from backend.app.models.user import User
-from backend.app.models.portfolio import Portfolio
-from backend.app.models.portfolio_holding import PortfolioHolding
-from backend.app.models.decision import Decision, DecisionType, DecisionSource
-from backend.app.models.alert import Alert, AlertType
 
 # Use an in‑memory SQLite database for fast isolated testing.
 # In production the project uses PostgreSQL, but SQLite supports the
