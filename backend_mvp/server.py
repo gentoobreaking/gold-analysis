@@ -1,17 +1,18 @@
+# @deprecated — backend/app is the canonical source of truth.
+# Legacy duplicate; do not use for new development.
+# See docs/CODEBASE_CONSOLIDATION.md.
 """
 Gold Analysis MVP - 極簡版後端
 直接串接 gold_monitor.py 的數據源，快速展示 Dashboard
 """
 import json
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
 
 # ── 數據源路徑 ────────────────────────────────────────────────────────────────
 HISTORY_FILE = Path("/Users/claw/.qclaw/gold_price_history.json")
@@ -24,8 +25,8 @@ class PriceResponse(BaseModel):
     sell_twd: float
     buy_twd: float
     timestamp: str
-    change: Optional[float] = None
-    change_pct: Optional[float] = None
+    change: float | None = None
+    change_pct: float | None = None
 
 class DecisionResponse(BaseModel):
     action: str

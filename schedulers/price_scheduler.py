@@ -1,13 +1,16 @@
+# @deprecated — backend/app is the canonical source of truth.
+# Legacy duplicate; do not use for new development.
+# See docs/CODEBASE_CONSOLIDATION.md.
 """
 價格數據定時調度器
 支持 OpenClaw cron 和 Python schedule
 """
-import time
 import logging
 import signal
 import sys
-from datetime import datetime
-from typing import Callable, Optional
+import time
+from collections.abc import Callable
+
 import schedule
 
 from agents.data_collector import DataCollectorAgent

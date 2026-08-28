@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+# @deprecated — backend/app is the canonical source of truth.
+# Legacy duplicate; do not use for new development.
+# See docs/CODEBASE_CONSOLIDATION.md.
 """
 台灣銀行黃金存摺價格監控腳本
 """
 import json
 import os
-import re
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -100,8 +102,8 @@ def record_price(sell_price, buy_price, time_str, is_daily_close=False):
 
 def fetch_gold_price():
     """使用瀏覽器抓取台銀黃金存摺價格"""
-    import tempfile
     import shutil
+    import tempfile
     
     # 創建臨時目錄
     tmp_dir = tempfile.mkdtemp()
@@ -189,8 +191,8 @@ import { chromium } from 'playwright';
 
 def send_telegram_message(text, photo_path=None):
     """發送 Telegram 訊息"""
-    import urllib.request
     import urllib.parse
+    import urllib.request
     
     # 從配置檔讀取 Telegram 設定
     config = load_config()
@@ -218,13 +220,13 @@ def send_telegram_message(text, photo_path=None):
             body.append(f'--{boundary}\r\n'.encode())
             body.append(f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'.encode())
             body.append(f'--{boundary}\r\n'.encode())
-            body.append(f'Content-Disposition: form-data; name="photo"; filename="chart.png"\r\n'.encode())
+            body.append(b'Content-Disposition: form-data; name="photo"; filename="chart.png"\r\n')
             body.append(b'Content-Type: image/png\r\n\r\n')
             body.append(photo.read())
             body.append(f'\r\n--{boundary}\r\n'.encode())
             body.append(f'Content-Disposition: form-data; name="caption"\r\n\r\n{text}\r\n'.encode())
             body.append(f'--{boundary}\r\n'.encode())
-            body.append(f'Content-Disposition: form-data; name="parse_mode"\r\n\r\nHTML\r\n'.encode())
+            body.append(b'Content-Disposition: form-data; name="parse_mode"\r\n\r\nHTML\r\n')
             body.append(f'--{boundary}--\r\n'.encode())
             
             req = urllib.request.Request(url, data=b''.join(body))
@@ -247,9 +249,10 @@ def generate_price_chart(history, sell_price, buy_price, current_time):
     """生成價格走勢圖（同時顯示買入和賣出價格）"""
     import matplotlib
     matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
     from datetime import datetime
+
+    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
     
     # 設置中文字體
     plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'PingFang TC', 'Heiti TC', 'STHeiti', 'SimHei', 'DejaVu Sans']
@@ -432,9 +435,7 @@ def check_price_targets(config, current_price):
         # 買入點：價格跌到或跌破目標
         # 賣出點：價格漲到或突破目標
         should_trigger = False
-        if target_type == "buy" and current_price <= price:
-            should_trigger = True
-        elif target_type == "sell" and current_price >= price:
+        if target_type == "buy" and current_price <= price or target_type == "sell" and current_price >= price:
             should_trigger = True
         
         if should_trigger:
@@ -537,7 +538,7 @@ def main():
         return
     
     if args.config:
-        print(f"當前配置：")
+        print("當前配置：")
         print(f"  閾值：{config['threshold']} 元")
         print(f"  價格點位：{len(config.get('price_targets', []))} 個")
         print(f"  狀態：{state}")

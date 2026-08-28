@@ -1,12 +1,13 @@
+# @deprecated — backend/app is the canonical source of truth.
+# Legacy duplicate; do not use for new development.
+# See docs/CODEBASE_CONSOLIDATION.md.
 """
 SQLite 數據庫管理模組
 """
-import sqlite3
-import os
-from pathlib import Path
-from typing import Optional, List, Dict, Any
-from datetime import datetime
 import logging
+import sqlite3
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class Database:
         
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
     
     @property
     def conn(self) -> sqlite3.Connection:
@@ -52,7 +53,7 @@ class Database:
             self._conn.close()
             self._conn = None
     
-    def get_metal_id(self, symbol: str) -> Optional[int]:
+    def get_metal_id(self, symbol: str) -> int | None:
         """獲取金屬 ID"""
         cursor = self.conn.execute(
             "SELECT id FROM metals WHERE symbol = ?", (symbol,)
@@ -60,7 +61,7 @@ class Database:
         row = cursor.fetchone()
         return row['id'] if row else None
     
-    def insert_price(self, data: Dict[str, Any]) -> bool:
+    def insert_price(self, data: dict[str, Any]) -> bool:
         """
         插入價格數據
         
@@ -107,7 +108,7 @@ class Database:
             logger.error(f"Failed to insert price: {e}")
             return False
     
-    def insert_prices_batch(self, prices: List[Dict[str, Any]]) -> int:
+    def insert_prices_batch(self, prices: list[dict[str, Any]]) -> int:
         """
         批量插入價格數據
         
@@ -133,7 +134,7 @@ class Database:
         """, (source, status, message, records, duration_ms))
         self.conn.commit()
     
-    def get_latest_prices(self, symbol: str = None, limit: int = 100) -> List[Dict]:
+    def get_latest_prices(self, symbol: str = None, limit: int = 100) -> list[dict]:
         """獲取最新價格數據"""
         if symbol:
             cursor = self.conn.execute("""
@@ -163,7 +164,7 @@ class Database:
 
 
 # 單例
-_db_instance: Optional[Database] = None
+_db_instance: Database | None = None
 
 def get_database() -> Database:
     """獲取數據庫單例"""

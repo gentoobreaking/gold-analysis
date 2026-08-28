@@ -1,13 +1,15 @@
+# @deprecated — backend/app is the canonical source of truth.
+# Legacy duplicate; do not use for new development.
+# See docs/CODEBASE_CONSOLIDATION.md.
 """
 數據收集 Agent
 實現數據聚合、驗證、存儲功能
 """
-import time
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
-from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from data_adapters.bot_adapter import BotBankAdapter
 from data_adapters.yahoo_finance_adapter import YahooFinanceAdapter
@@ -30,8 +32,8 @@ class CollectionResult:
     """收集結果"""
     source: str
     success: bool
-    data: List[Dict] = field(default_factory=list)
-    error: Optional[str] = None
+    data: list[dict] = field(default_factory=list)
+    error: str | None = None
     duration_ms: int = 0
     retries: int = 0
 
@@ -59,7 +61,7 @@ class DataCollectorAgent:
             ),
         }
     
-    def collect_all_prices(self, sources: List[str] = None) -> Dict[str, CollectionResult]:
+    def collect_all_prices(self, sources: list[str] = None) -> dict[str, CollectionResult]:
         """
         並行收集所有金屬價格
         
@@ -154,7 +156,7 @@ class DataCollectorAgent:
             retries=retries
         )
     
-    def validate_data(self, data: List[Dict]) -> tuple[List[Dict], List[Dict]]:
+    def validate_data(self, data: list[dict]) -> tuple[list[dict], list[dict]]:
         """
         驗證數據有效性
         
@@ -178,7 +180,7 @@ class DataCollectorAgent:
         
         return valid_data, invalid_data
     
-    def _validate_single(self, item: Dict) -> bool:
+    def _validate_single(self, item: dict) -> bool:
         """驗證單條數據"""
         # 必需字段
         required_fields = ['symbol', 'source', 'timestamp']
@@ -209,7 +211,7 @@ class DataCollectorAgent:
         
         return True
     
-    def deduplicate(self, data: List[Dict]) -> List[Dict]:
+    def deduplicate(self, data: list[dict]) -> list[dict]:
         """
         數據去重
         
@@ -248,7 +250,7 @@ class DataCollectorAgent:
             return ts.isoformat()
         return str(ts) if ts else ''
     
-    def store_to_db(self, data: List[Dict]) -> tuple[int, int]:
+    def store_to_db(self, data: list[dict]) -> tuple[int, int]:
         """
         存儲數據到數據庫
         
@@ -279,7 +281,7 @@ class DataCollectorAgent:
         logger.info(f"Stored {stored} records, skipped {skipped} duplicates")
         return stored, skipped
     
-    def run_collection(self) -> Dict:
+    def run_collection(self) -> dict:
         """
         執行完整收集流程
         

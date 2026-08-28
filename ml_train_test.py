@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# NOTE: this script intentionally uses the canonical backend.app.ml modules.
+# It is a training/validation utility, not a legacy duplicate — keep it.
 """
 ml_train_test.py - 測試 gold-analysis ML 模組
 串接 FeatureEngineer → ModelTrainer → ModelEvaluator
