@@ -57,6 +57,12 @@ class CoreSettings(BaseSettings):
         default=None, description="Webhook URL (Telegram/Discord/Slack compatible)."
     )
 
+    # Webhook HMAC secret (T067)
+    webhook_secret: Optional[str] = Field(
+        default=None,
+        description="Shared secret for HMAC-SHA256 webhook signature verification.",
+    )
+
     # LLM 宏觀敘事 (T065) — OpenAI-compatible /v1/chat/completions
     llm_enabled: bool = Field(
         default=False,

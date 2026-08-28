@@ -26,6 +26,7 @@ class DecisionSource(str, Enum):
     FUNDAMENTAL = "fundamental"
     SENTIMENT = "sentiment"
     MANUAL = "manual"
+    EXTERNAL = "external"
 
 
 class Decision(Base):

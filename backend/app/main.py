@@ -636,3 +636,8 @@ from app.api.routes.macro_digest import router as _macro_digest_router
 app.include_router(_backtest_router, prefix="/api/backtest")
 app.include_router(_portfolio_risk_router)
 app.include_router(_macro_digest_router)
+
+# T067: Webhook signal ingest (TradingView / external signals)
+from app.api.routes.webhooks import router as _webhooks_router
+
+app.include_router(_webhooks_router)

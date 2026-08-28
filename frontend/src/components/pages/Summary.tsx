@@ -9,9 +9,11 @@ import {
   fetchHistory,
   fetchMacroDigest,
   generateMacroDigest,
+  fetchFreshness,
   type PriceResponse,
   type DecisionResponse,
   type MacroDigestResponse,
+  type FreshnessResponse,
 } from '@services/api';
 
 const Summary: React.FC = () => {
@@ -19,6 +21,7 @@ const Summary: React.FC = () => {
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [history, setHistory] = useState<Array<{ timestamp: string; sell: number; buy: number }>>([]);
   const [digest, setDigest] = useState<MacroDigestResponse | null>(null);
+  const [freshness, setFreshness] = useState<FreshnessResponse | null>(null);
   const [genLoading, setGenLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,14 +40,16 @@ const Summary: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [priceData, decisionData, historyData] = await Promise.all([
+      const [priceData, decisionData, historyData, freshnessData] = await Promise.all([
         fetchCurrentPrice(),
         fetchDecision(),
         fetchHistory(7),
+        fetchFreshness(),
       ]);
       setPrice(priceData);
       setDecision(decisionData);
       setHistory(historyData.data);
+      setFreshness(freshnessData);
     } catch (e: unknown) {
       const err = e as { message?: string };
       setError(err?.message ?? '無法載入數據');
@@ -104,6 +109,40 @@ const Summary: React.FC = () => {
       ? 'text-red-400'
       : 'text-yellow-400';
 
+  // 資料新鮮度狀態顏色與標籤 (T066)
+  const statusColor = (status: string) => {
+    switch (status) {
+      case 'fresh':
+        return 'bg-green-400';
+      case 'stale':
+        return 'bg-red-400 animate-pulse';
+      case 'unavailable':
+        return 'bg-gray-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'fresh':
+        return '正常';
+      case 'stale':
+        return '過期';
+      case 'unavailable':
+        return '停用';
+      default:
+        return status;
+    }
+  };
+
+  const formatAge = (seconds: number | null) => {
+    if (seconds === null) return '';
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+    return `${Math.round(seconds / 3600)}h`;
+  };
+
   const formatTimestamp = (ts: string) => {
     try {
       const d = new Date(ts);
@@ -160,6 +199,52 @@ const Summary: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 資料新鮮度狀態指示燈 (T066) */}
+      <div className="bg-slate-700/50 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-white">📡 資料來源狀態</h3>
+          {freshness && (
+            <span className="text-xs text-gray-400">
+              更新時間：{formatTimestamp(freshness.checked_at)}
+            </span>
+          )}
+        </div>
+        {freshness ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {freshness.sources.map((src) => (
+              <div key={src.name} className="bg-slate-800 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${statusColor(src.status)}`} />
+                  <span className="text-white font-medium">{src.name}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    src.status === 'fresh'
+                      ? 'bg-green-900/30 text-green-300'
+                      : src.status === 'stale'
+                      ? 'bg-red-900/30 text-red-300'
+                      : 'bg-gray-700 text-gray-400'
+                  }`}>
+                    {statusLabel(src.status)}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  SLA: {Math.round(src.sla_seconds / 60)}分鐘{src.age_seconds && src.status !== 'unavailable' && (
+                    <span> · 年齡: {formatAge(src.age_seconds)}</span>
+                  )}
+                  {src.is_mock && <span> · mock</span>}
+                </div>
+                {src.last_update && (
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    最後更新：{formatTimestamp(src.last_update)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-400 text-sm">載入中...</div>
+        )}
       </div>
 
       {/* 技術指標摘要卡片 */}

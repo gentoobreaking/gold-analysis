@@ -282,4 +282,27 @@ export const generateMacroDigest = async (
   return data;
 };
 
+// ─── T066: 資料新鮮度 SLA ───────────────────────────────────────────────
+export type SourceStatus = 'fresh' | 'stale' | 'unavailable';
+
+export interface SourceFreshness {
+  name: string;
+  sla_seconds: number;
+  last_update: string | null;
+  age_seconds: number | null;
+  status: SourceStatus;
+  is_mock: boolean;
+  detail: string;
+}
+
+export interface FreshnessResponse {
+  checked_at: string;
+  sources: SourceFreshness[];
+}
+
+export const fetchFreshness = async (): Promise<FreshnessResponse> => {
+  const { data } = await api.get<FreshnessResponse>('/api/freshness');
+  return data;
+};
+
 export { api };
