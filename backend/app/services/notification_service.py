@@ -4,6 +4,7 @@ Notification Service - 通知渠道管理
 """
 import logging
 import json
+import asyncio
 from typing import Optional
 from datetime import datetime
 
@@ -88,23 +89,10 @@ class NotificationService:
         body: str,
         html: Optional[str] = None,
     ) -> bool:
-        """
-        發送郵件通知（需配置 SMTP）
-
-        目前為存根實現，返回 True。
-        實際部署時替換為真實 SMTP 發送（如 FastAPI mailtrap 或 SendGrid）。
-        """
+        """發送郵件通知（SMTP，需配置 CORE_SMTP_*；未配置時記錄並跳過）"""
         try:
-            # TODO: 替換為真實 SMTP 實現
-            logger.info(
-                f"[EMAIL STUB] To: {to_email} | Subject: {subject} | Body: {body[:80]}"
-            )
-            # 示例 SMTP:
-            # from app.services.config import get_api_settings
-            # settings = get_api_settings()
-            # async with aiosmtplib.SMTP(...) as smtp:
-            #     await smtp.send_message(MIMEText(body, "plain"))
-            return True
+            from app.services.notify import _email_transport
+            return await asyncio.to_thread(_email_transport, to_email, subject, body)
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
             return False
@@ -167,19 +155,10 @@ class NotificationService:
         payload: dict,
         headers: Optional[dict] = None,
     ) -> bool:
-        """
-        發送 Webhook 通知
-
-        目前為存根實現。
-        """
+        """發送 Webhook 通知（Telegram/Discord/Slack 兼容；未配置時跳過）"""
         try:
-            logger.info(f"[WEBHOOK STUB] url={webhook_url} payload={json.dumps(payload)[:100]}")
-            # TODO: 替換為真實 HTTP 請求
-            # import httpx
-            # async with httpx.AsyncClient() as client:
-            #     r = await client.post(webhook_url, json=payload, headers=headers)
-            #     r.raise_for_status()
-            return True
+            from app.services.notify import _webhook_transport
+            return await asyncio.to_thread(_webhook_transport, webhook_url, payload)
         except Exception as e:
             logger.error(f"Failed to send webhook: {e}")
             return False

@@ -6,6 +6,7 @@ Redis connection, and other core infrastructure.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,6 +41,20 @@ class CoreSettings(BaseSettings):
     trading_dry_run: bool = Field(
         default=True,
         description="When True, orders are simulated/logged but never submitted to the exchange.",
+    )
+
+    # Notifications (T056)
+    notify_enabled: bool = Field(
+        default=False, description="Enable alert notifications (email/webhook)."
+    )
+    smtp_host: Optional[str] = Field(default=None, description="SMTP host for email alerts.")
+    smtp_port: int = Field(default=587, description="SMTP port.")
+    smtp_user: Optional[str] = Field(default=None)
+    smtp_pass: Optional[str] = Field(default=None)
+    smtp_from: Optional[str] = Field(default=None)
+    notify_email_to: Optional[str] = Field(default=None, description="Recipient for email alerts.")
+    notify_webhook_url: Optional[str] = Field(
+        default=None, description="Webhook URL (Telegram/Discord/Slack compatible)."
     )
 
     model_config = SettingsConfigDict(

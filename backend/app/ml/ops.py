@@ -18,7 +18,23 @@ from .retraining import RetrainingOrchestrator
 def run_monitor(prices: pd.DataFrame, monitor: Optional[ModelMonitor] = None) -> Dict[str, Any]:
     """Snapshot drift + health for the latest window."""
     monitor = monitor or ModelMonitor()
-    return monitor.snapshot(prices)
+    snapshot = monitor.snapshot(prices)
+    # T056: 監控異常時推送通知（若已配置 notify_enabled）
+    try:
+        alerts = snapshot.get("alerts") or []
+        health = snapshot.get("health") or {}
+        unhealthy = health.get("status") in ("unhealthy", "degraded")
+        if alerts or unhealthy:
+            from app.services.notify import notify_alert
+            notify_alert({
+                "title": "[MODEL MONITOR] 監控異常",
+                "body": f"alerts={alerts}, health_status={health.get('status')}",
+                "level": "warning",
+                "source": "model_monitor",
+            })
+    except Exception:  # noqa: BLE001
+        pass
+    return snapshot
 
 
 def run_retrain(

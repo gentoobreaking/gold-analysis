@@ -7,6 +7,8 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import logging
+import json
+import urllib.request
 
 logger = logging.getLogger(__name__)
 
@@ -191,22 +193,54 @@ class DataTools:
         }
     
     async def get_sentiment_data(self) -> Dict[str, Any]:
-        """獲取市場情緒數據"""
+        """獲取市場情緒數據（真實來源；失敗時標示 unavailable，不再回傳假值）"""
         logger.info("Fetching sentiment data")
-        
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "gold": {
-                "fear_greed_index": 65,
-                "sentiment": "Greed",
-                "positioning": "Long",
-                "etf_flow": 125000000  # 美元
-            },
-            "crypto": {
-                "fear_greed_index": 55,
-                "sentiment": "Neutral"
+
+        # 測試/離線保留的 mock 模式（預設關閉，不回傳假情緒）
+        if self.config.get("mock_sentiment"):
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "available": True,
+                "source": "mock",
+                "gold": {
+                    "fear_greed_index": 65,
+                    "sentiment": "Greed",
+                    "positioning": "Long",
+                    "etf_flow": 125000000,
+                },
+                "crypto": {"fear_greed_index": 55, "sentiment": "Neutral"},
             }
-        }
+
+        try:
+            url = "https://api.alternative.me/fng/?limit=1"
+            req = urllib.request.Request(url, headers={"User-Agent": "gold-analysis/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            entry = (payload.get("data") or [{}])[0]
+            value = int(entry.get("value", 0))
+            classification = entry.get("value_classification", "")
+            sentiment = "Greed" if value >= 55 else ("Fear" if value <= 45 else "Neutral")
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "available": True,
+                "source": "alternative.me",
+                "gold": {
+                    "fear_greed_index": value,
+                    "sentiment": sentiment,
+                    "classification": classification,
+                    "positioning": "Unknown",
+                    "etf_flow": None,
+                },
+                "crypto": {"fear_greed_index": value, "sentiment": sentiment},
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Sentiment fetch failed, marking unavailable: %s", e)
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "available": False,
+                "reason": str(e),
+                "gold": {"sentiment": None, "fear_greed_index": None},
+            }
     
     def clear_cache(self) -> None:
         """清除緩存"""

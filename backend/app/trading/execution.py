@@ -107,6 +107,16 @@ def execute_decision(
         }
         if logger is not None:
             logger.log(event)
+        try:
+            from app.services.notify import notify_alert
+            notify_alert({
+                "title": f"[RISK BLOCK] {symbol} {action}",
+                "body": f"Pre-trade risk gate blocked order: {risk['summary']['blocked_rules']}",
+                "level": "critical",
+                "source": "execution",
+            })
+        except Exception:  # noqa: BLE001
+            pass
         return event
 
     # 3. Submit real order
