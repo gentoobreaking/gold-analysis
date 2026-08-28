@@ -225,7 +225,24 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             price_target=price_target,
             reasoning=reasoning
         )
-        
+
+        # 13. 決策可解釋性（規則決策：top 貢獻因子 + 觸發規則）— T062
+        try:
+            from app.ml.explainer import explain_rule_decision
+            report["explanation"] = explain_rule_decision(
+                scores={
+                    "technical": tech_score,
+                    "fundamental": fund_score,
+                    "risk": risk_score,
+                    "composite": composite_score,
+                },
+                weights=self.dimension_weights,
+                decision_type=recommendation.decision_type.value,
+                reasoning_zh=reasoning["zh"],
+            )
+        except Exception:  # noqa: BLE001 - 解釋為輔助資訊，失敗不影響主決策
+            pass
+
         return report
     
     def _extract_score(

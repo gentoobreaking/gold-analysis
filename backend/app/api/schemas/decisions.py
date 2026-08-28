@@ -83,6 +83,9 @@ class RecommendationResponse(BaseModel):
     risk_level: str = Field(..., description="風險等級: low, medium, high")
     suggestions: List[str] = Field(default_factory=list, description="建議")
     warnings: List[str] = Field(default_factory=list, description="警告")
+    explanation: Optional[Dict[str, Any]] = Field(
+        None, description="決策可解釋性：ML 用 SHAP/feature_importance，規則用觸發因子 (T062)"
+    )
 
 
 class DecisionStatsResponse(BaseModel):

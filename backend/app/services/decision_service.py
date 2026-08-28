@@ -61,6 +61,26 @@ class DecisionService:
         # 更新 is_executed 為 False（預設）
         reasoning = f"信號強度 {signal_strength:.0%}，置信度 {confidence:.0%}。"
 
+        # 決策可解釋性（規則決策：由決策方向合成維度評分）— T062
+        try:
+            from app.ml.explainer import explain_rule_decision
+            direction = {"buy": 0.4, "strong_buy": 0.7, "hold": 0.0, "sell": -0.4, "strong_sell": -0.7}.get(
+                decision.decision_type.value, 0.0
+            )
+            explanation = explain_rule_decision(
+                scores={
+                    "technical": direction,
+                    "fundamental": direction * 0.6,
+                    "risk": -direction * 0.3,
+                    "composite": direction,
+                },
+                weights={"technical": 0.35, "fundamental": 0.30, "risk": 0.35},
+                decision_type=decision.decision_type.value,
+                reasoning_zh=decision.reason_zh,
+            )
+        except Exception:  # noqa: BLE001 - 解釋為輔助資訊，失敗不影響主決策
+            explanation = None
+
         return {
             "decision": {
                 "id": decision.id,
@@ -87,6 +107,7 @@ class DecisionService:
             "risk_level": "medium",
             "suggestions": ["建議設定止損", "分批進場降低風險"],
             "warnings": ["模擬環境數據，實盤請謹慎"],
+            "explanation": explanation,
         }
 
     async def create_decision(

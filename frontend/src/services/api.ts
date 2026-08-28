@@ -31,6 +31,31 @@ export interface HistoryResponse {
 }
 
 // ── 決策 API ────────────────────────────────────────────────────────────────
+export interface DecisionExplanationRuleFactor {
+  factor: string;
+  label?: string;
+  score: number;
+  weight?: number;
+  tilt: number;
+  direction: 'bullish' | 'bearish' | 'neutral';
+}
+
+export interface DecisionExplanationMlFeature {
+  feature: string;
+  contribution: number;
+  direction: 'positive' | 'negative' | 'neutral';
+  value?: number | null;
+}
+
+// 決策可解釋性（T062）：規則決策給 top_factors + triggered_rules；ML 決策給 top_features
+export interface DecisionExplanation {
+  method?: string;
+  model_type?: string;
+  top_factors?: DecisionExplanationRuleFactor[];
+  triggered_rules?: string[];
+  top_features?: DecisionExplanationMlFeature[];
+}
+
 export interface DecisionResponse {
   action: 'buy' | 'sell' | 'hold';
   confidence: number;
@@ -38,6 +63,7 @@ export interface DecisionResponse {
   reason: string[];
   price: number;
   timestamp: string;
+  explanation?: DecisionExplanation;
 }
 
 export const fetchCurrentPrice = async (): Promise<PriceResponse> => {

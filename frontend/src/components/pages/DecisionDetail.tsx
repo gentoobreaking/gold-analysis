@@ -3,7 +3,7 @@
  * 與 Dashboard.tsx 決策卡片風格一致
  */
 import React, { useEffect, useState, useCallback } from 'react';
-import { fetchDecision, fetchHistory, type DecisionResponse } from '@services/api';
+import { fetchDecision, fetchHistory, type DecisionResponse, type DecisionExplanation } from '@services/api';
 
 interface HistoryRow {
   timestamp: string;
@@ -276,8 +276,9 @@ const DecisionDetail: React.FC = () => {
       {!loading && !error && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左側：信號儀表 */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             {decision && <SignalGauge decision={decision} />}
+            {decision && <ExplanationCard explanation={decision.explanation} />}
           </div>
 
           {/* 右側：信號列表 + 歷史表格 */}
@@ -285,6 +286,86 @@ const DecisionDetail: React.FC = () => {
             <SignalList signals={history} />
             <DecisionHistory history={history} />
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── 決策可解釋性卡片（T062）──────────────────────────────────────────────────
+
+const ExplanationCard: React.FC<{ explanation?: DecisionExplanation }> = ({ explanation }) => {
+  if (!explanation) return null;
+
+  const isMl = explanation.method === 'shap' || explanation.method === 'feature_importance';
+
+  return (
+    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-white font-semibold">🔍 決策依據</h3>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-gray-400">
+          {explanation.method === 'shap'
+            ? 'SHAP'
+            : explanation.method === 'feature_importance'
+            ? '特徵重要性'
+            : '規則'}
+        </span>
+      </div>
+
+      {isMl && explanation.top_features && explanation.top_features.length > 0 && (
+        <div className="space-y-2">
+          {explanation.top_features.map((f, i) => {
+            const pct = Math.min(100, Math.abs(f.contribution) * 100);
+            const dirColor =
+              f.direction === 'positive' ? 'bg-green-500' : f.direction === 'negative' ? 'bg-red-500' : 'bg-slate-500';
+            return (
+              <div key={i}>
+                <div className="flex justify-between text-xs text-gray-300 mb-1">
+                  <span>{f.feature}</span>
+                  <span className={f.direction === 'positive' ? 'text-green-400' : f.direction === 'negative' ? 'text-red-400' : 'text-gray-400'}>
+                    {f.direction === 'positive' ? '↑' : f.direction === 'negative' ? '↓' : '·'} {f.contribution.toFixed(4)}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                  <div className={`h-full rounded-full ${dirColor}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!isMl && explanation.top_factors && explanation.top_factors.length > 0 && (
+        <div className="space-y-2">
+          {explanation.top_factors.map((f, i) => {
+            const pct = Math.min(100, Math.abs(f.tilt) * 100);
+            const dirColor =
+              f.direction === 'bullish' ? 'bg-green-500' : f.direction === 'bearish' ? 'bg-red-500' : 'bg-slate-500';
+            return (
+              <div key={i}>
+                <div className="flex justify-between text-xs text-gray-300 mb-1">
+                  <span>{f.label ?? f.factor}</span>
+                  <span className={f.direction === 'bullish' ? 'text-green-400' : f.direction === 'bearish' ? 'text-red-400' : 'text-gray-400'}>
+                    {f.direction === 'bullish' ? '偏多' : f.direction === 'bearish' ? '偏空' : '中性'}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                  <div className={`h-full rounded-full ${dirColor}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {explanation.triggered_rules && explanation.triggered_rules.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-700 space-y-1">
+          {explanation.triggered_rules.map((r, i) => (
+            <div key={i} className="flex gap-2 text-xs text-gray-400">
+              <span className="text-gray-600 mt-0.5">•</span>
+              <span>{r}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
