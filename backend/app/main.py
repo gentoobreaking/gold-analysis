@@ -170,146 +170,6 @@ def _get_db():
     return conn
 
 
-# ── API Routes (SQLite mock mode) ────────────────────────────────────────────
-
-
-@app.get("/api/prices/current")
-async def get_current_price():
-    """獲取黃金即時價格（從 SQLite 讀取）"""
-    conn = _get_db()
-    try:
-        row = conn.execute(
-            "SELECT local_sell, local_buy, timestamp, source_time "
-            "FROM price_history WHERE metal='gold' ORDER BY timestamp DESC LIMIT 1"
-        ).fetchone()
-        if not row:
-            return {
-                "sell": 0,
-                "buy": 0,
-                "sell_twd": 0,
-                "buy_twd": 0,
-                "timestamp": "",
-                "change": 0,
-                "change_pct": 0,
-            }
-
-        sell = row["local_sell"]
-        buy = row["local_buy"]
-        ts = row["timestamp"]
-
-        # 計算相對前一天收盤的變動
-        prev = conn.execute(
-            "SELECT local_sell FROM price_history "
-            "WHERE metal='gold' AND local_sell != local_buy "
-            "ORDER BY timestamp DESC LIMIT 1 OFFSET 1"
-        ).fetchone()
-        prev_sell = prev["local_sell"] if prev else sell
-        change = sell - prev_sell
-        change_pct = (change / prev_sell * 100) if prev_sell else 0
-
-        return {
-            "sell": sell,
-            "buy": buy,
-            "sell_twd": sell,
-            "buy_twd": buy,
-            "timestamp": ts,
-            "change": round(change, 1),
-            "change_pct": round(change_pct, 2),
-        }
-    finally:
-        conn.close()
-
-
-@app.get("/api/prices/history")
-async def get_price_history(days: int = 7):
-    """獲取歷史價格"""
-    conn = _get_db()
-    try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-        rows = conn.execute(
-            "SELECT local_sell AS sell, local_buy AS buy, timestamp "
-            "FROM price_history WHERE metal='gold' AND timestamp >= ? "
-            "ORDER BY timestamp ASC",
-            (cutoff,),
-        ).fetchall()
-        data = [{"timestamp": r["timestamp"], "sell": r["sell"], "buy": r["buy"]} for r in rows]
-        return {"data": data, "count": len(data)}
-    finally:
-        conn.close()
-
-
-@app.get("/api/decisions/recommend")
-async def get_decision_recommend():
-    """AI 決策推薦（mock，基於 RSI 簡單邏輯）"""
-    conn = _get_db()
-    try:
-        rows = conn.execute(
-            "SELECT local_buy FROM price_history WHERE metal='gold' ORDER BY timestamp ASC"
-        ).fetchall()
-        prices = [r["local_buy"] for r in rows]
-
-        action = "hold"
-        confidence = 0.5
-        signal = "觀望"
-        reasons = ["數據不足，無法給出明確建議"]
-
-        if len(prices) >= 14:
-            # RSI(14)
-            gains, losses = 0, 0
-            for i in range(-14, 0):
-                diff = prices[i] - prices[i - 1]
-                if diff > 0:
-                    gains += diff
-                else:
-                    losses += abs(diff)
-            period = min(14, len(prices) - 1)
-            avg_gain = gains / period
-            avg_loss = losses / period
-            rsi = 100 - (100 / (1 + avg_gain / avg_loss)) if avg_loss else 100
-
-            # 均線 MA(5) / MA(20) / MA(60)
-            ma5 = sum(prices[-5:]) / 5
-            ma20 = sum(prices[-20:]) / 20
-            ma60 = sum(prices[-60:]) / 60 if len(prices) >= 60 else None
-
-            if rsi < 30 and ma5 < ma20:
-                action = "buy"
-                confidence = 0.7
-                signal = "偏多 - RSI 超賣"
-                reasons = [
-                    f"RSI(14)={rsi:.1f} 處超賣區",
-                    f"MA5={ma5:.0f} < MA20={ma20:.0f}，短線偏弱",
-                ]
-                if ma60 and ma20 > ma60:
-                    reasons.append(f"MA20={ma20:.0f} > MA60={ma60:.0f}，中線仍偏多")
-            elif rsi > 70 and ma5 > ma20:
-                action = "sell"
-                confidence = 0.7
-                signal = "偏空 - RSI 超買"
-                reasons = [
-                    f"RSI(14)={rsi:.1f} 處超買區",
-                    f"MA5={ma5:.0f} > MA20={ma20:.0f}，短線偏強",
-                ]
-                if ma60 and ma20 < ma60:
-                    reasons.append(f"MA20={ma20:.0f} < MA60={ma60:.0f}，中線仍偏空")
-            else:
-                action = "hold"
-                confidence = 0.6
-                signal = "中性"
-                reasons = [f"RSI(14)={rsi:.1f} 中性區間", f"MA5={ma5:.0f} MA20={ma20:.0f}"]
-                if ma60:
-                    reasons.append(f"MA60={ma60:.0f}")
-
-        return {
-            "action": action,
-            "confidence": confidence,
-            "signal": signal,
-            "reason": reasons,
-            "price": prices[-1] if prices else 0,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-    finally:
-        conn.close()
 
 
 # ── System endpoints ──────────────────────────────────────────────────────────
@@ -321,13 +181,13 @@ async def root():
         "name": settings.app_name,
         "version": settings.app_version,
         "status": "running",
-        "mode": "sqlite-mock",
+        "mode": "postgresql",
     }
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "mode": "sqlite-mock"}
+    return {"status": "healthy", "mode": "postgresql"}
 
 
 if __name__ == "__main__":
@@ -734,3 +594,14 @@ app.include_router(_macro_digest_router)
 from app.api.routes.webhooks import router as _webhooks_router
 
 app.include_router(_webhooks_router)
+
+# T011: Mount remaining API routes for PostgreSQL-backed endpoints
+from app.api.routes.prices import router as _prices_router
+from app.api.routes.decisions import router as _decisions_router
+from app.api.routes.alerts import router as _alerts_router
+from app.api.routes.freshness import router as _freshness_router
+
+app.include_router(_prices_router, prefix="/api/prices")
+app.include_router(_decisions_router, prefix="/api/decisions")
+app.include_router(_alerts_router, prefix="/api/alerts")
+app.include_router(_freshness_router)

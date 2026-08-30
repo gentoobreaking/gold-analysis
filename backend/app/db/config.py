@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # PostgreSQL
-    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/gold_analysis"
+    database_url: str = "postgresql+asyncpg://twquant:twquant-secret-password@localhost:5432/twquant_shared"
 
     # InfluxDB
     influxdb_url: str = "http://localhost:8086"
