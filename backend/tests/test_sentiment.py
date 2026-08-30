@@ -23,8 +23,11 @@ def _fake_payload():
 
 def test_real_source_available():
     dt = DataTools()
-    with patch("app.tools.data_tools.urllib.request.urlopen") as urlopen:
-        urlopen.return_value.__enter__.return_value.read.return_value = _fake_payload()
+    payload = {"data": [{"value": "72", "value_classification": "Greed"}]}
+    with patch("app.tools.data_tools.httpx.AsyncClient.get") as mock_get:
+        mock_get.return_value.__aenter__ = None
+        mock_get.return_value.raise_for_status = lambda: None
+        mock_get.return_value.json = lambda: payload
         out = asyncio.run(dt.get_sentiment_data())
     assert out["available"] is True
     assert out["gold"]["fear_greed_index"] == 72
@@ -33,7 +36,7 @@ def test_real_source_available():
 
 def test_source_failure_marks_unavailable():
     dt = DataTools()
-    with patch("app.tools.data_tools.urllib.request.urlopen", side_effect=Exception("boom")):
+    with patch("app.tools.data_tools.httpx.AsyncClient.get", side_effect=Exception("boom")):
         out = asyncio.run(dt.get_sentiment_data())
     assert out["available"] is False
     assert out["gold"]["sentiment"] is None

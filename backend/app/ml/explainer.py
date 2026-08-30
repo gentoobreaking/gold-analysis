@@ -72,10 +72,14 @@ def explain_ml_decision(
           "method": "shap" | "feature_importance",
           "model_type": str,
           "top_features": [
-            {"feature", "contribution": float, "direction": "positive"|"negative"|"neutral", "value": float},
+            {
+              "feature": str,
+              "contribution": float,
+              "direction": "positive" | "negative" | "neutral",
+              "value": float,
+            },
             ...,
           ],
-        }
     """
     feature_names = list(feature_names)
     X = _to_2d_row(X_row)
@@ -101,7 +105,7 @@ def explain_ml_decision(
 
             sv = explainer.shap_values(X)
             vals = _shap_row_values(sv, model, X)
-            for name, v in zip(feature_names, vals):
+            for name, v in zip(feature_names, vals, strict=False):
                 contributions[name] = float(v)
             method = "shap"
         except Exception as exc:  # pragma: no cover - SHAP 失敗時回落
@@ -112,15 +116,15 @@ def explain_ml_decision(
         # 回落：模型內建重要性 / 係數
         if hasattr(model, "feature_importances_"):
             imp = np.asarray(model.feature_importances_, dtype=float)
-            for name, v in zip(feature_names, imp):
+            for name, v in zip(feature_names, imp, strict=False):
                 contributions[name] = float(v)
         elif hasattr(model, "coef_"):
             coef = np.asarray(model.coef_, dtype=float)
             coef = coef.mean(axis=0) if coef.ndim > 1 else coef
-            for name, v in zip(feature_names, coef):
+            for name, v in zip(feature_names, coef, strict=False):
                 contributions[name] = float(abs(v))
         else:
-            contributions = {name: 0.0 for name in feature_names}
+            contributions = dict.fromkeys(feature_names, 0.0)
         method = "feature_importance"
 
     feature_values = X[0]

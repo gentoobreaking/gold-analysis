@@ -1,6 +1,7 @@
 """
 Alert model - user-defined price alerts and notifications
 """
+
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -19,6 +20,7 @@ class AlertType(str, Enum):
 
 class Alert(Base):
     """Alert model for price or indicator notifications"""
+
     __tablename__ = "alerts"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -35,4 +37,4 @@ class Alert(Base):
     user: Mapped["User"] = relationship(back_populates="alerts")  # noqa: F821
 
     def __repr__(self):
-        return f"<Alert(id={self.id}, asset={self.asset}, target={self.target_price}, active={self.is_active})>"
+        return f"<Alert(id={self.id}, asset={self.asset}, target={self.target_price}, active={self.is_active})>"  # noqa: E501

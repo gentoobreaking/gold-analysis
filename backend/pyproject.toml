@@ -57,6 +57,16 @@ ignore = [
     "S110",    # Try-except-pass - intentional for optional deps
     "RUF012",  # Mutable class default - handled with ClassVar
     "DTZ005",  # datetime.now() - some cases intentional
+    "RUF001",  # Ambiguous-unicode - false positive for Chinese identifiers
+    "RUF002",  # Ambiguous-unicode docstring - false positive for Chinese docstrings
+    "RUF003",  # Ambiguous-unicode comment - false positive for Chinese comments
+    "TRY003",  # raise-vanilla-args - built-in exceptions (ValueError, TypeError) are idiomatic
+    "TRY300",  # try-consider-else - style preference, code is correct without refactor
+    "TRY400",  # error-instead-of-exception - logging.error is intentional in non-exexcept paths
+    "E402",    # module-import-not-at-top - intentional for dotenv/load_dotenv before imports
+    "B008",    # function-call-in-default-arg - FastAPI Depends/Query/Path pattern is intentional
+    "SIM108",  # if-else-block-instead-of-if-exp - readability preference, not a bug
+    "SIM103",  # needless-bool - readability preference
 ]
 
 [tool.ruff.format]

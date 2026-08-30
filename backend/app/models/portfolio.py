@@ -1,6 +1,7 @@
 """
 Portfolio model - represents a user's investment portfolio
 """
+
 from datetime import datetime, timezone
 
 from app.db.config import Base
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 class Portfolio(Base):
     """Portfolio model"""
+
     __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -20,11 +22,15 @@ class Portfolio(Base):
     current_value: Mapped[float] = mapped_column(Float, default=0.0)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="portfolios")  # noqa: F821
-    holdings: Mapped[list["PortfolioHolding"]] = relationship(back_populates="portfolio", cascade="all, delete-orphan")  # noqa: F821
+    holdings: Mapped[list["PortfolioHolding"]] = relationship(  # noqa: F821
+        back_populates="portfolio", cascade="all, delete-orphan"
+    )
     decisions: Mapped[list["Decision"]] = relationship(back_populates="portfolio")  # noqa: F821
 
     def __repr__(self):

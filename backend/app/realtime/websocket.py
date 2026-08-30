@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # ─── 消息類型 ─────────────────────────────────────────────────────────────────
 
+
 class MessageType(str, Enum):
     PRICE = "price"
     DECISION = "decision"
@@ -34,6 +35,7 @@ class MessageType(str, Enum):
 @dataclass
 class WSMessage:
     """WebSocket 消息"""
+
     type: MessageType
     channel: str
     data: Any
@@ -41,13 +43,15 @@ class WSMessage:
     subscription_id: str | None = None
 
     def to_json(self) -> str:
-        return json.dumps({
-            "type": self.type.value,
-            "channel": self.channel,
-            "data": self.data,
-            "timestamp": self.timestamp,
-            "subscription_id": self.subscription_id,
-        })
+        return json.dumps(
+            {
+                "type": self.type.value,
+                "channel": self.channel,
+                "data": self.data,
+                "timestamp": self.timestamp,
+                "subscription_id": self.subscription_id,
+            }
+        )
 
     @classmethod
     def from_json(cls, raw: str) -> WSMessage:
@@ -63,6 +67,7 @@ class WSMessage:
 
 # ─── ConnectionManager ─────────────────────────────────────────────────────────
 
+
 class ConnectionManager:
     """
     連接管理器
@@ -71,7 +76,7 @@ class ConnectionManager:
     """
 
     def __init__(self):
-        self._connections: dict[str, Any] = {}   # conn_id -> websocket
+        self._connections: dict[str, Any] = {}  # conn_id -> websocket
         self._subscriptions: dict[str, set[str]] = {}  # conn_id -> set of channels
         self._counter = 0
         self._lock = asyncio.Lock()
@@ -135,6 +140,7 @@ class ConnectionManager:
 
 # ─── WebSocketServer ────────────────────────────────────────────────────────────
 
+
 class WebSocketServer:
     """
     WebSocket 服務器
@@ -181,40 +187,48 @@ class WebSocketServer:
 
         try:
             # 發送歡迎 ACK
-            await websocket.send(WSMessage(
-                type=MessageType.ACK,
-                channel="system",
-                data={"status": "connected", "conn_id": conn_id},
-            ).to_json())
+            await websocket.send(
+                WSMessage(
+                    type=MessageType.ACK,
+                    channel="system",
+                    data={"status": "connected", "conn_id": conn_id},
+                ).to_json()
+            )
 
             async for raw in websocket:
                 try:
                     msg = WSMessage.from_json(raw)
                 except Exception:
-                    await websocket.send(WSMessage(
-                        type=MessageType.ERROR,
-                        channel="system",
-                        data={"error": "Invalid message format"},
-                    ).to_json())
+                    await websocket.send(
+                        WSMessage(
+                            type=MessageType.ERROR,
+                            channel="system",
+                            data={"error": "Invalid message format"},
+                        ).to_json()
+                    )
                     continue
 
                 if msg.type == MessageType.SUBSCRIBE:
                     await self.manager.subscribe(conn_id, msg.channel)
-                    await websocket.send(WSMessage(
-                        type=MessageType.ACK,
-                        channel=msg.channel,
-                        data={"subscribed": True},
-                    ).to_json())
+                    await websocket.send(
+                        WSMessage(
+                            type=MessageType.ACK,
+                            channel=msg.channel,
+                            data={"subscribed": True},
+                        ).to_json()
+                    )
 
                 elif msg.type == MessageType.UNSUBSCRIBE:
                     await self.manager.unsubscribe(conn_id, msg.channel)
 
                 elif msg.type == MessageType.HEARTBEAT:
-                    await websocket.send(WSMessage(
-                        type=MessageType.HEARTBEAT,
-                        channel="system",
-                        data={"pong": True, "server_time": time.time()},
-                    ).to_json())
+                    await websocket.send(
+                        WSMessage(
+                            type=MessageType.HEARTBEAT,
+                            channel="system",
+                            data={"pong": True, "server_time": time.time()},
+                        ).to_json()
+                    )
 
         except Exception as e:
             logger.error(f"客戶端錯誤 {conn_id}: {e}")
@@ -223,6 +237,7 @@ class WebSocketServer:
 
 
 # ─── WebSocketClient ────────────────────────────────────────────────────────────
+
 
 class WebSocketClient:
     """
@@ -281,11 +296,13 @@ class WebSocketClient:
         """訂閱頻道"""
         self._subscriptions.add(channel)
         if self._ws:
-            await self._ws.send(WSMessage(
-                type=MessageType.SUBSCRIBE,
-                channel=channel,
-                data={},
-            ).to_json())
+            await self._ws.send(
+                WSMessage(
+                    type=MessageType.SUBSCRIBE,
+                    channel=channel,
+                    data={},
+                ).to_json()
+            )
 
     async def send(self, msg: WSMessage) -> None:
         """發送消息"""
@@ -303,7 +320,7 @@ class WebSocketClient:
                 raw = await self._ws.recv()
                 msg = WSMessage.from_json(raw)
                 if self.on_message:
-                    asyncio.create_task(self._safe_callback(msg))
+                    asyncio.create_task(self._safe_callback(msg))  # noqa: RUF006
             except Exception as e:
                 if self._running:
                     logger.error(f"監聽錯誤: {e}")
@@ -311,6 +328,7 @@ class WebSocketClient:
 
 
 # ─── RealtimePushService ────────────────────────────────────────────────────────
+
 
 class RealtimePushService:
     """

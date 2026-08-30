@@ -1,6 +1,7 @@
 """
 Redis client wrapper for caching and session storage
 """
+
 import json
 from typing import Any
 
