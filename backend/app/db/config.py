@@ -91,6 +91,8 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_postgres() -> None:
     """Initialize PostgreSQL connection and create tables"""
+    # Import models so they register with Base.metadata
+    from app.models import Alert, Decision, Portfolio, PortfolioHolding, User  # noqa: F401
     engine = get_postgres_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -43,7 +43,7 @@ class Decision(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     # Foreign keys
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     portfolio_id: Mapped[int | None] = mapped_column(
         ForeignKey("portfolios.id"), nullable=True, index=True
     )
@@ -71,7 +71,7 @@ class Decision(Base):
 
     # Execution status
     is_executed: Mapped[bool] = mapped_column(Boolean, default=False)
-    executed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     execution_price: Mapped[float | None] = mapped_column(Float)
 
     # Metadata
@@ -80,10 +80,10 @@ class Decision(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now(timezone.utc), index=True
+        DateTime(timezone=True), default=datetime.now(timezone.utc), index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
+        DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
     )
 
     # Relationships

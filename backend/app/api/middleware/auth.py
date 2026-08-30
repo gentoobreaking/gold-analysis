@@ -18,19 +18,16 @@ bearer_scheme = HTTPBearer(auto_error=False)
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
     db: AsyncSession = Depends(get_db_session),
-) -> User:
+) -> User | None:
     """
     Get current authenticated user from JWT token.
-    Raises 401 if not authenticated or token invalid.
+    Returns None if no credentials provided (for optional auth endpoints).
+    Raises 401 if token is invalid.
     """
     from app.core.security import verify_token
 
     if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="未提供認證憑證",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None
 
     token = credentials.credentials
 
@@ -64,12 +61,15 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user),
-) -> User:
+    current_user: User | None = Depends(get_current_user),
+) -> User | None:
     """
     Get current active user.
+    Returns None if no user authenticated (for optional auth endpoints).
     Raises 403 if user account is disabled.
     """
+    if current_user is None:
+        return None
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -79,12 +79,18 @@ async def get_current_active_user(
 
 
 async def get_current_premium_user(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User | None = Depends(get_current_active_user),
 ) -> User:
     """
     Get current premium user.
-    Raises 403 if user is not a premium member.
+    Raises 401 if not authenticated, 403 if not premium.
     """
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="需要認證",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if not current_user.is_premium:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

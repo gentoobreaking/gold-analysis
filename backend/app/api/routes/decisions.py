@@ -50,9 +50,7 @@ async def get_recommendations(
     decision_service = DecisionService(db)
     try:
         recommendation = await decision_service.generate_recommendation(
-            user_id=current_user.id,
-            symbol=symbol.upper(),
-            confidence_threshold=confidence_threshold,
+            user_id=current_user.id if current_user else None,
         )
         return RecommendationResponse(**recommendation)
     except ValueError as e:
@@ -114,7 +112,7 @@ async def list_decisions(
     - **decision_type**: 按決策類型過濾
     - **is_executed**: 按執行狀態過濾
     """
-    query = select(Decision).where(Decision.user_id == current_user.id)
+    query = select(Decision).where(Decision.user_id == (current_user.id if current_user else 0))
 
     # Apply filters
     if symbol:

@@ -66,7 +66,7 @@ async def list_alerts(
     - **is_active**: 按啟用狀態過濾
     - **asset**: 按資產符號過濾
     """
-    query = select(Alert).where(Alert.user_id == current_user.id)
+    query = select(Alert).where(Alert.user_id == (current_user.id if current_user else 0))
 
     if is_active is not None:
         query = query.where(Alert.is_active == is_active)
