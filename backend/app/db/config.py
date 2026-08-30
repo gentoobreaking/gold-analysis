@@ -19,7 +19,9 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # PostgreSQL
-    database_url: str = "postgresql+asyncpg://twquant:twquant-secret-password@localhost:5432/twquant_shared"
+    database_url: str = (
+        "postgresql+asyncpg://twquant:twquant-secret-password@localhost:5432/twquant_shared"
+    )
 
     # InfluxDB
     influxdb_url: str = "http://localhost:8086"
@@ -92,7 +94,15 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 async def init_postgres() -> None:
     """Initialize PostgreSQL connection and create tables"""
     # Import models so they register with Base.metadata
-    from app.models import Alert, Decision, Portfolio, PortfolioHolding, User  # noqa: F401
+    from app.models import (  # noqa: F401
+        Alert,
+        DailyPrice,
+        Decision,
+        Portfolio,
+        PortfolioHolding,
+        User,
+    )
+
     engine = get_postgres_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -83,7 +83,9 @@ class Decision(Base):
         DateTime(timezone=True), default=datetime.now(timezone.utc), index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
     )
 
     # Relationships

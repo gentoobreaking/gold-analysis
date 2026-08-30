@@ -1,43 +1,117 @@
 """Decision Service - AI 決策業務邏輯
 
-Mock 實作供測試/開發環境使用。正式環境可接入真實 AI 模型服務。
+從共享 PostgreSQL 讀取價格數據，基於技術指標生成決策。
 """
 
 from __future__ import annotations
 
-import random
+import math
 from datetime import datetime, timezone
 from typing import Any
 
 from app.models.decision import Decision, DecisionSource, DecisionType
-from sqlalchemy import func, select
+from app.services.price_service import PriceService
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class DecisionService:
-    """決策服務"""
+    """決策服務 - 基於技術指標生成決策"""
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.price_service = PriceService(session)
 
     async def generate_recommendation(
         self,
-        user_id: int,
+        user_id: int | None = None,
         symbol: str = "GOLD",
         confidence_threshold: float = 0.6,
     ) -> dict[str, Any]:
-        """生成 AI 推薦（mock）。"""
-        if symbol.upper() != "GOLD":
+        """基於技術指標生成 AI 推薦。"""
+        symbol = symbol.upper()
+        if symbol != "GOLD":
             raise ValueError(f"不支持的資產符號: {symbol}")
 
-        # 模擬決策邏輯
-        decision_type = random.choice([DecisionType.BUY, DecisionType.SELL, DecisionType.HOLD])
-        signal_strength = round(random.uniform(0.5, 0.95), 2)
-        confidence = round(random.uniform(0.55, 0.9), 2)
+        # Get technical indicators from PostgreSQL-backed PriceService
+        indicators_data = await self.price_service.get_technical_indicators(symbol, period=14)
+        indicators = indicators_data["indicators"]
+        signals = indicators_data["signals"]
 
-        # 確保滿足閾值
+        # Get historical prices for volatility calculation
+        hist = await self.price_service.get_historical_prices(symbol, "1d", limit=20)
+        prices = [d["close"] for d in hist["data"]]
+
+        rsi = indicators["rsi"]
+        macd = indicators["macd"]
+        sma_20 = indicators["sma_20"]
+        _ema_20 = indicators["ema_20"]
+
+        # Volatility
+        if len(prices) > 1:
+            returns = [prices[i] / prices[i - 1] - 1 for i in range(1, len(prices))]
+            volatility = math.sqrt(sum(r * r for r in returns) / len(returns)) * math.sqrt(252)
+        else:
+            volatility = 0.1
+
+        # Decision logic based on technical indicators
+        direction = 0.0
+        decision_type = DecisionType.HOLD
+        confidence = 0.5
+
+        # RSI signal
+        if rsi < 30:
+            direction += 0.4
+            if signals["rsi"] == "oversold":
+                decision_type = DecisionType.BUY
+                confidence = 0.7
+        elif rsi > 70:
+            direction -= 0.4
+            if signals["rsi"] == "overbought":
+                decision_type = DecisionType.SELL
+                confidence = 0.7
+        else:
+            if signals["rsi"] == "overbought":
+                direction -= 0.2
+                decision_type = DecisionType.SELL
+                confidence = 0.55
+            elif signals["rsi"] == "oversold":
+                direction += 0.2
+                decision_type = DecisionType.BUY
+                confidence = 0.55
+
+        # MACD signal
+        if macd > 0:
+            direction += 0.3
+            if signals["macd"] == "bullish":
+                confidence = min(0.9, confidence + 0.1)
+        else:
+            direction -= 0.3
+            if signals["macd"] == "bearish":
+                confidence = min(0.9, confidence + 0.1)
+
+        # Price vs Bollinger Bands
+        bb_upper = indicators["bb_upper"]
+        bb_lower = indicators["bb_lower"]
+        if prices:
+            current_price = prices[-1]
+            if current_price > bb_upper:
+                direction -= 0.2
+                confidence = min(0.85, confidence + 0.05)
+            elif current_price < bb_lower:
+                direction += 0.2
+                confidence = min(0.85, confidence + 0.05)
+
+        # Ensure confidence meets threshold
         if confidence < confidence_threshold:
             confidence = confidence_threshold + 0.05
+
+        # Signal strength based on direction magnitude
+        signal_strength = min(0.95, max(0.5, abs(direction) * 0.8 + 0.5))
+
+        # Price targets based on SMA and volatility
+        price_target = float(sma_20 * (1 + direction * 0.03))
+        stop_loss = float(sma_20 * (1 - direction * 0.02))
 
         decision = Decision(
             user_id=user_id,
@@ -46,43 +120,48 @@ class DecisionService:
             asset=symbol.upper(),
             signal_strength=signal_strength,
             confidence=confidence,
-            price_target=round(2000 + random.uniform(-50, 50), 2),
-            stop_loss=round(2000 - random.uniform(20, 100), 2),
-            reason_zh=f"基於技術指標分析，建議 {decision_type.value.upper()}。",
-            reason_en=f"Based on technical analysis, {decision_type.value.upper()} is recommended.",
-            model_version="v1-mock",
+            price_target=round(price_target, 2),
+            stop_loss=round(stop_loss, 2),
+            reason_zh=f"基於技術指標分析（RSI={rsi:.1f}，MACD={macd:.4f}），"
+            f"建議 {decision_type.value.upper()}。",
+            reason_en=f"Based on technical analysis (RSI={rsi:.1f}, "
+            f"MACD={macd:.4f}), {decision_type.value.upper()} is recommended.",
+            model_version="v1-pg",
         )
 
         self.session.add(decision)
         await self.session.flush()
 
-        # 更新 is_executed 為 False（預設）
-        reasoning = f"信號強度 {signal_strength:.0%}，置信度 {confidence:.0%}。"
+        reasoning = (
+            f"信號強度 {signal_strength:.0%}，置信度 {confidence:.0%}，波動率 {volatility:.2%}。"
+        )
 
-        # 決策可解釋性（規則決策：由決策方向合成維度評分）— T062
+        # Decision explainability
+        explanation = None
         try:
             from app.ml.explainer import explain_rule_decision
 
-            direction = {
+            direction_map = {
                 "buy": 0.4,
                 "strong_buy": 0.7,
                 "hold": 0.0,
                 "sell": -0.4,
                 "strong_sell": -0.7,
-            }.get(decision.decision_type.value, 0.0)
+            }
+            direction_val = direction_map.get(decision.decision_type.value, 0.0)
             explanation = explain_rule_decision(
                 scores={
-                    "technical": direction,
-                    "fundamental": direction * 0.6,
-                    "risk": -direction * 0.3,
-                    "composite": direction,
+                    "technical": direction_val,
+                    "fundamental": direction_val * 0.6,
+                    "risk": -direction_val * 0.3,
+                    "composite": direction_val,
                 },
                 weights={"technical": 0.35, "fundamental": 0.30, "risk": 0.35},
                 decision_type=decision.decision_type.value,
                 reasoning_zh=decision.reason_zh,
             )
         except Exception:
-            explanation = None
+            pass
 
         return {
             "decision": {
@@ -111,9 +190,9 @@ class DecisionService:
                 else datetime.now(timezone.utc).isoformat(),
             },
             "reasoning": reasoning,
-            "risk_level": "medium",
+            "risk_level": "high" if volatility > 0.15 else "medium",
             "suggestions": ["建議設定止損", "分批進場降低風險"],
-            "warnings": ["模擬環境數據，實盤請謹慎"],
+            "warnings": [],
             "explanation": explanation,
         }
 
@@ -166,30 +245,22 @@ class DecisionService:
         return decision
 
     async def get_decision_stats(self, user_id: int) -> dict[str, Any]:
-        """獲取決策統計（mock）。"""
-        # 查詢實際數據
-        total_result = await self.session.execute(
-            select(func.count()).select_from(
-                select(Decision).where(Decision.user_id == user_id).subquery()
-            )
-        )
-        total = total_result.scalar() or 0
+        """獲取決策統計。"""
+        result = await self.session.execute(select(Decision).where(Decision.user_id == user_id))
+        decisions = result.scalars().all()
+        total = len(decisions)
 
-        # 簡單統計
         type_counts = {dt.value: 0 for dt in DecisionType}
         executed = 0
         confidences = []
         strengths = []
 
-        if total > 0:
-            result = await self.session.execute(select(Decision).where(Decision.user_id == user_id))
-            decisions = result.scalars().all()
-            for d in decisions:
-                type_counts[d.decision_type.value] += 1
-                if d.is_executed:
-                    executed += 1
-                confidences.append(d.confidence)
-                strengths.append(d.signal_strength)
+        for d in decisions:
+            type_counts[d.decision_type.value] += 1
+            if d.is_executed:
+                executed += 1
+            confidences.append(d.confidence)
+            strengths.append(d.signal_strength)
 
         return {
             "total_decisions": total,

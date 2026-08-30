@@ -24,7 +24,9 @@ class PortfolioHolding(Base):
     current_price: Mapped[float | None] = mapped_column(Float)
     market_value: Mapped[float | None] = mapped_column(Float)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
     )

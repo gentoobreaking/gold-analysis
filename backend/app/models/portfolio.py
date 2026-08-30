@@ -21,7 +21,9 @@ class Portfolio(Base):
     initial_capital: Mapped[float] = mapped_column(Float, default=0.0)
     current_value: Mapped[float] = mapped_column(Float, default=0.0)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc)
     )
