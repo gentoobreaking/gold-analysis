@@ -1,7 +1,7 @@
 """
 User model for authentication and user management
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.db.config import Base
 from sqlalchemy import Boolean, DateTime, String, Text
@@ -37,8 +37,8 @@ class User(Base):
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     last_login: Mapped[datetime | None] = mapped_column(DateTime)
     
     # Relationships

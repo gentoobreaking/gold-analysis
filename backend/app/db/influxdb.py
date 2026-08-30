@@ -4,7 +4,7 @@ InfluxDB client wrapper for market data
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-from .config import get_influx_client, settings
+from .config import get_influx_client, init_influxdb, settings  # noqa: F401
 
 
 def get_write_api(client: InfluxDBClient):

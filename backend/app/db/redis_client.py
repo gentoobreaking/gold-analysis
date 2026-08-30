@@ -4,7 +4,7 @@ Redis client wrapper for caching and session storage
 import json
 from typing import Any
 
-from .config import get_redis_client
+from .config import get_redis_client, init_redis  # noqa: F401
 
 
 async def set_json(key: str, value: Any, ttl: int | None = None) -> None:
