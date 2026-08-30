@@ -100,8 +100,8 @@ class Order:
     avg_fill_price: float = 0.0
     commission: float = 0.0
     time_in_force: TimeInForce = TimeInForce.GTC
-    created_at: datetime = field(default_factory=datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     notes: str | None = None
     exchange: str = "mock"  # 交易所名稱
     metadata: dict[str, Any] = field(default_factory=dict)
