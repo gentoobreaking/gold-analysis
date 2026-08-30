@@ -4,8 +4,9 @@ Validation & Cleaning Configuration
 """
 
 from functools import lru_cache
-from pydantic_settings import BaseSettings
+
 from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class ValidationSettings(BaseSettings):
@@ -56,13 +57,13 @@ class CleaningSettings(BaseSettings):
         extra = "ignore"
 
 
-@lru_cache()
+@lru_cache
 def get_validation_settings() -> ValidationSettings:
     """取得驗證配置"""
     return ValidationSettings()
 
 
-@lru_cache()
+@lru_cache
 def get_cleaning_settings() -> CleaningSettings:
     """取得清洗配置"""
     return CleaningSettings()

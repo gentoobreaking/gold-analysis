@@ -5,8 +5,8 @@ Mock 實作供測試/開發環境使用。正式環境可替換為真實數據�
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,13 +17,13 @@ class PriceService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_current_price(self, symbol: str = "GOLD") -> Dict[str, Any]:
+    async def get_current_price(self, symbol: str = "GOLD") -> dict[str, Any]:
         """獲取當前價格（mock）。"""
         if symbol.upper() != "GOLD":
             raise ValueError(f"不支持的資產符號: {symbol}")
 
         base_price = 2000.0 + random.uniform(-50, 50)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         return {
             "symbol": "GOLD",
@@ -46,16 +46,16 @@ class PriceService:
         self,
         symbol: str = "GOLD",
         interval: str = "1h",
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         limit: int = 100,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """獲取歷史價格（mock）。"""
         if symbol.upper() != "GOLD":
             raise ValueError(f"不支持的資產符號: {symbol}")
 
         if end_time is None:
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
         if start_time is None:
             start_time = end_time - timedelta(days=7)
 
@@ -70,7 +70,7 @@ class PriceService:
         }
         delta = interval_map.get(interval, timedelta(hours=1))
 
-        data: List[Dict[str, Any]] = []
+        data: list[dict[str, Any]] = []
         current = start_time
         base_price = 2000.0
 
@@ -109,7 +109,7 @@ class PriceService:
         self,
         symbol: str = "GOLD",
         period: int = 14,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """獲取技術指標（mock）。"""
         if symbol.upper() != "GOLD":
             raise ValueError(f"不支持的資產符號: {symbol}")
@@ -121,7 +121,7 @@ class PriceService:
 
         return {
             "symbol": "GOLD",
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "indicators": {
                 "rsi": rsi,
                 "macd": macd,

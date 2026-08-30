@@ -1,53 +1,48 @@
 """
 Backtest routes - strategy backtesting and optimization
 """
+
 from datetime import datetime
-from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from app.models.user import User
-from app.db.config import get_db_session
+from app.api.middleware.auth import get_current_active_user
 from app.api.schemas.backtest import (
     BacktestRequest,
     BacktestResponse,
-    BacktestMetrics,
-    BacktestTrade,
-    BacktestEquity,
-    SaveStrategyRequest,
-    StrategyResponse,
-    StrategyListResponse,
-    WalkForwardRequest,
-    WalkForwardResponse,
-    WalkForwardFold,
-    StrategyComparisonRequest,
-    StrategyComparisonResponse,
-    StrategyComparisonItem,
     PaperReplayRequest,
     PaperReplayResponse,
+    SaveStrategyRequest,
+    StrategyComparisonItem,
+    StrategyComparisonRequest,
+    StrategyComparisonResponse,
+    StrategyListResponse,
+    StrategyResponse,
+    WalkForwardFold,
+    WalkForwardRequest,
+    WalkForwardResponse,
 )
-from app.services.backtest_engine import BacktestEngine, BUILTIN_STRATEGIES
-from app.services.price_data import fetch_price_series
-from app.api.middleware.auth import get_current_active_user
+from app.db.config import get_db_session
+from app.models.user import User
+from app.services.backtest_engine import BUILTIN_STRATEGIES, BacktestEngine
 from app.services.backtest_service import BacktestService
-
+from app.services.price_data import fetch_price_series
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
 
 # ── Backtest Endpoints ─────────────────────────────────────────────────────────
 
+
 @router.post("/run", response_model=BacktestResponse)
 async def run_backtest(
     request: BacktestRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> BacktestResponse:
     """
     運行策略回測。
-    
+
     - **strategy_type**: 策略類型（ma_crossover, rsi, macd, combined）
     - **start_date**: 開始日期
     - **end_date**: 結束日期
@@ -59,7 +54,7 @@ async def run_backtest(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="結束日期必須晚於開始日期",
         )
-    
+
     # Validate strategy type
     valid_strategies = ["ma_crossover", "rsi", "macd", "combined"]
     if request.strategy_type not in valid_strategies:
@@ -67,7 +62,7 @@ async def run_backtest(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"不支持的策略類型。可選: {', '.join(valid_strategies)}",
         )
-    
+
     backtest_service = BacktestService(db)
     try:
         result = await backtest_service.run_backtest(
@@ -89,19 +84,19 @@ async def run_backtest(
 @router.post("/strategies", response_model=StrategyResponse, status_code=status.HTTP_201_CREATED)
 async def save_strategy(
     request: SaveStrategyRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> StrategyResponse:
     """
     保存策略配置。
-    
+
     - **name**: 策略名稱
     - **strategy_type**: 策略類型
     - **config**: 策略配置
     - **is_public**: 是否公開（可被其他用戶查看）
     """
     backtest_service = BacktestService(db)
-    
+
     strategy = await backtest_service.save_strategy(
         user_id=current_user.id,
         name=request.name,
@@ -110,7 +105,7 @@ async def save_strategy(
         config=request.config,
         is_public=request.is_public,
     )
-    
+
     return StrategyResponse.model_validate(strategy)
 
 
@@ -118,21 +113,21 @@ async def save_strategy(
 async def list_strategies(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    strategy_type: Optional[str] = Query(None, description="策略類型過濾"),
+    strategy_type: str | None = Query(None, description="策略類型過濾"),
     include_public: bool = Query(default=True, description="包含公開策略"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> StrategyListResponse:
     """
     列出策略。
-    
+
     - **page**: 頁碼
     - **page_size**: 每頁數量
     - **strategy_type**: 按策略類型過濾
     - **include_public**: 是否包含公開策略
     """
     backtest_service = BacktestService(db)
-    
+
     result = await backtest_service.list_strategies(
         user_id=current_user.id,
         page=page,
@@ -140,19 +135,19 @@ async def list_strategies(
         strategy_type=strategy_type,
         include_public=include_public,
     )
-    
+
     return StrategyListResponse(**result)
 
 
 @router.get("/strategies/{strategy_id}", response_model=StrategyResponse)
 async def get_strategy(
     strategy_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> StrategyResponse:
     """獲取策略詳情。"""
     backtest_service = BacktestService(db)
-    
+
     try:
         strategy = await backtest_service.get_strategy(
             strategy_id=strategy_id,
@@ -174,12 +169,12 @@ async def get_strategy(
 @router.delete("/strategies/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_strategy(
     strategy_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> None:
     """刪除策略。"""
     backtest_service = BacktestService(db)
-    
+
     try:
         await backtest_service.delete_strategy(
             strategy_id=strategy_id,
@@ -197,50 +192,50 @@ async def delete_strategy(
         )
 
 
-@router.get("/history", response_model=List[BacktestResponse])
+@router.get("/history", response_model=list[BacktestResponse])
 async def list_backtest_history(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
-) -> List[BacktestResponse]:
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+) -> list[BacktestResponse]:
     """列出歷史回測記錄。"""
     backtest_service = BacktestService(db)
-    
+
     results = await backtest_service.list_backtest_history(
         user_id=current_user.id,
         page=page,
         page_size=page_size,
     )
-    
+
     return [BacktestResponse(**r) for r in results]
 
 
 @router.get("/compare")
 async def compare_strategies(
     strategy_ids: str = Query(..., description="策略 ID 列表（逗號分隔）"),
-    start_date: Optional[datetime] = Query(None, description="比較開始日期"),
-    end_date: Optional[datetime] = Query(None, description="比較結束日期"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    start_date: datetime | None = Query(None, description="比較開始日期"),  # noqa: B008
+    end_date: datetime | None = Query(None, description="比較結束日期"),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> dict:
     """
     比較多個策略的表現。
-    
+
     - **strategy_ids**: 策略 ID 列表
     - **start_date**: 比較開始日期（可選）
     - **end_date**: 比較結束日期（可選）
     """
     strategy_id_list = [int(s.strip()) for s in strategy_ids.split(",")]
-    
+
     if len(strategy_id_list) < 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="至少需要兩個策略進行比較",
         )
-    
+
     backtest_service = BacktestService(db)
-    
+
     try:
         comparison = await backtest_service.compare_strategies(
             strategy_ids=strategy_id_list,
@@ -257,6 +252,7 @@ async def compare_strategies(
 
 
 # ── T063: 向量化引擎端點（無 DB / 自帶價格序列）────────────────────────────
+
 
 @router.post("/walk-forward", response_model=WalkForwardResponse)
 async def walk_forward(request: WalkForwardRequest) -> WalkForwardResponse:
@@ -291,7 +287,9 @@ async def walk_forward(request: WalkForwardRequest) -> WalkForwardResponse:
 
 
 @router.post("/compare", response_model=StrategyComparisonResponse)
-async def compare_strategies_engine(request: StrategyComparisonRequest) -> StrategyComparisonResponse:
+async def compare_strategies_engine(
+    request: StrategyComparisonRequest,
+) -> StrategyComparisonResponse:
     """
     策略比較：對同一段歷史價格，並排比較多個內建策略的績效。
     """
@@ -311,9 +309,15 @@ async def compare_strategies_engine(request: StrategyComparisonRequest) -> Strat
     for name, item in raw.items():
         if "error" in item:
             results[name] = StrategyComparisonItem(
-                final_equity=0.0, total_return=0.0, annualized_return=0.0,
-                sharpe_ratio=0.0, sortino_ratio=0.0, max_drawdown=0.0,
-                win_rate=0.0, n_trades=0, errors=[item["error"]],
+                final_equity=0.0,
+                total_return=0.0,
+                annualized_return=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                max_drawdown=0.0,
+                win_rate=0.0,
+                n_trades=0,
+                errors=[item["error"]],
             )
     return StrategyComparisonResponse(results=results)
 

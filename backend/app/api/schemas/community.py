@@ -2,10 +2,9 @@
 Community request/response schemas
 """
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ── Enums ──────────────────────────────────────────────────────────────────────
 
@@ -29,19 +28,19 @@ class CreateStrategyRequest(BaseModel):
     """Create shared strategy request"""
     title: str = Field(..., min_length=3, max_length=200, description="策略標題")
     content: str = Field(..., min_length=10, description="策略內容（Markdown）")
-    tags: List[str] = Field(default_factory=list, description="標籤列表")
-    decision_ids: Optional[List[int]] = Field(None, description="關聯的決策 ID")
+    tags: list[str] = Field(default_factory=list, description="標籤列表")
+    decision_ids: list[int] | None = Field(None, description="關聯的決策 ID")
     is_public: bool = Field(default=True, description="是否公開")
-    thumbnail_url: Optional[str] = Field(None, description="縮略圖 URL")
+    thumbnail_url: str | None = Field(None, description="縮略圖 URL")
 
 
 class UpdateStrategyRequest(BaseModel):
     """Update shared strategy request"""
-    title: Optional[str] = Field(None, min_length=3, max_length=200)
-    content: Optional[str] = Field(None, min_length=10)
-    tags: Optional[List[str]] = None
-    is_public: Optional[bool] = None
-    thumbnail_url: Optional[str] = None
+    title: str | None = Field(None, min_length=3, max_length=200)
+    content: str | None = Field(None, min_length=10)
+    tags: list[str] | None = None
+    is_public: bool | None = None
+    thumbnail_url: str | None = None
 
 
 class StrategyResponse(BaseModel):
@@ -49,18 +48,18 @@ class StrategyResponse(BaseModel):
     id: int
     user_id: int
     author_username: str
-    author_display_name: Optional[str]
-    author_avatar_url: Optional[str]
+    author_display_name: str | None
+    author_avatar_url: str | None
     title: str
     content: str
-    tags: List[str]
+    tags: list[str]
     view_count: int
     upvote_count: int
     downvote_count: int
     comment_count: int
     is_public: bool
     status: str
-    decision_ids: Optional[List[int]]
+    decision_ids: list[int] | None
     created_at: datetime
     updated_at: datetime
     is_owner: bool = Field(False, description="是否為作者")
@@ -71,7 +70,7 @@ class StrategyResponse(BaseModel):
 
 class StrategyListResponse(BaseModel):
     """Strategy list response"""
-    items: List[StrategyResponse]
+    items: list[StrategyResponse]
     total: int
     page: int
     page_size: int
@@ -84,16 +83,16 @@ class CreateDiscussionRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=200, description="標題")
     content: str = Field(..., min_length=10, description="內容")
     category: str = Field(..., description="分類: general, question, analysis, feedback")
-    tags: List[str] = Field(default_factory=list, description="標籤")
-    related_strategy_id: Optional[int] = Field(None, description="關聯策略 ID")
+    tags: list[str] = Field(default_factory=list, description="標籤")
+    related_strategy_id: int | None = Field(None, description="關聯策略 ID")
 
 
 class UpdateDiscussionRequest(BaseModel):
     """Update discussion request"""
-    title: Optional[str] = Field(None, min_length=3, max_length=200)
-    content: Optional[str] = Field(None, min_length=10)
-    category: Optional[str] = None
-    tags: Optional[List[str]] = None
+    title: str | None = Field(None, min_length=3, max_length=200)
+    content: str | None = Field(None, min_length=10)
+    category: str | None = None
+    tags: list[str] | None = None
 
 
 class DiscussionResponse(BaseModel):
@@ -101,18 +100,18 @@ class DiscussionResponse(BaseModel):
     id: int
     user_id: int
     author_username: str
-    author_display_name: Optional[str]
-    author_avatar_url: Optional[str]
+    author_display_name: str | None
+    author_avatar_url: str | None
     title: str
     content: str
     category: str
-    tags: List[str]
+    tags: list[str]
     view_count: int
     reply_count: int
     upvote_count: int
     downvote_count: int
     status: str
-    related_strategy_id: Optional[int]
+    related_strategy_id: int | None
     created_at: datetime
     updated_at: datetime
     is_owner: bool = False
@@ -123,7 +122,7 @@ class DiscussionResponse(BaseModel):
 
 class DiscussionListResponse(BaseModel):
     """Discussion list response"""
-    items: List[DiscussionResponse]
+    items: list[DiscussionResponse]
     total: int
     page: int
     page_size: int
@@ -134,7 +133,7 @@ class DiscussionListResponse(BaseModel):
 class CreateCommentRequest(BaseModel):
     """Create comment request"""
     content: str = Field(..., min_length=1, max_length=5000, description="評論內容")
-    parent_id: Optional[int] = Field(None, description="父評論 ID（回覆）")
+    parent_id: int | None = Field(None, description="父評論 ID（回覆）")
 
 
 class UpdateCommentRequest(BaseModel):
@@ -147,10 +146,10 @@ class CommentResponse(BaseModel):
     id: int
     user_id: int
     author_username: str
-    author_display_name: Optional[str]
-    author_avatar_url: Optional[str]
+    author_display_name: str | None
+    author_avatar_url: str | None
     content: str
-    parent_id: Optional[int]
+    parent_id: int | None
     target_type: str  # strategy, discussion, comment
     target_id: int
     upvote_count: int
@@ -167,7 +166,7 @@ class CommentResponse(BaseModel):
 
 class CommentListResponse(BaseModel):
     """Comment list response"""
-    items: List[CommentResponse]
+    items: list[CommentResponse]
     total: int
     page: int
     page_size: int
@@ -219,7 +218,7 @@ class NotificationResponse(BaseModel):
     title: str
     content: str
     is_read: bool
-    data: Optional[Dict[str, Any]]
+    data: dict[str, Any] | None
     created_at: datetime
 
 
@@ -230,7 +229,7 @@ class ReportContentRequest(BaseModel):
     target_type: str = Field(..., description="strategy, discussion, comment, user")
     target_id: int = Field(..., description="目標 ID")
     reason: str = Field(..., description="舉報原因")
-    details: Optional[str] = Field(None, description="詳細說明")
+    details: str | None = Field(None, description="詳細說明")
 
 
 class ModerateContentRequest(BaseModel):
@@ -238,7 +237,7 @@ class ModerateContentRequest(BaseModel):
     content_type: str = Field(..., description="strategy, discussion, comment")
     content_id: int
     action: str = Field(..., description="approve, reject, flag")
-    reason: Optional[str] = Field(None, description="處理原因")
+    reason: str | None = Field(None, description="處理原因")
 
 
 class ModerationLogResponse(BaseModel):
@@ -248,5 +247,5 @@ class ModerationLogResponse(BaseModel):
     content_type: str
     content_id: int
     action: str
-    reason: Optional[str]
+    reason: str | None
     created_at: datetime

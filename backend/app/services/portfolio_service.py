@@ -2,17 +2,13 @@
 Portfolio Service - 投資組合管理業務邏輯
 """
 import logging
-from typing import Optional
-from datetime import datetime
-from decimal import Decimal
-
-from sqlalchemy import select, update, delete, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from datetime import datetime, timezone
 
 from app.models.portfolio import Portfolio
 from app.models.portfolio_holding import PortfolioHolding
-from app.models.decision import Decision
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +25,7 @@ class PortfolioService:
         self,
         user_id: int,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         initial_capital: float = 0.0,
     ) -> Portfolio:
         """創建投資組合"""
@@ -46,7 +42,7 @@ class PortfolioService:
         logger.info(f"Created portfolio {portfolio.id} for user {user_id}")
         return portfolio
 
-    async def get_portfolio(self, portfolio_id: int) -> Optional[Portfolio]:
+    async def get_portfolio(self, portfolio_id: int) -> Portfolio | None:
         """取得單一組合（帶持倉）"""
         stmt = (
             select(Portfolio)
@@ -70,9 +66,9 @@ class PortfolioService:
     async def update_portfolio(
         self,
         portfolio_id: int,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-    ) -> Optional[Portfolio]:
+        name: str | None = None,
+        description: str | None = None,
+    ) -> Portfolio | None:
         """更新組合基本資訊"""
         portfolio = await self.get_portfolio(portfolio_id)
         if not portfolio:
@@ -81,7 +77,7 @@ class PortfolioService:
             portfolio.name = name
         if description is not None:
             portfolio.description = description
-        portfolio.updated_at = datetime.utcnow()
+        portfolio.updated_at = datetime.now(timezone.utc)
         await self.session.commit()
         await self.session.refresh(portfolio)
         return portfolio
@@ -101,8 +97,8 @@ class PortfolioService:
         asset_type: str,
         quantity: float,
         avg_cost: float,
-        current_price: Optional[float] = None,
-    ) -> Optional[PortfolioHolding]:
+        current_price: float | None = None,
+    ) -> PortfolioHolding | None:
         """新增持倉"""
         # 檢查是否已存在相同資產的持倉，則合併
         existing = await self._get_holding(portfolio_id, asset_type)
@@ -113,7 +109,7 @@ class PortfolioService:
             if current_price is not None:
                 existing.current_price = current_price
                 existing.market_value = total_qty * current_price
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
             await self.session.commit()
             await self.session.refresh(existing)
             await self._recalculate_portfolio_value(portfolio_id)
@@ -138,14 +134,14 @@ class PortfolioService:
         portfolio_id: int,
         asset_type: str,
         current_price: float,
-    ) -> Optional[PortfolioHolding]:
+    ) -> PortfolioHolding | None:
         """更新持倉市價"""
         holding = await self._get_holding(portfolio_id, asset_type)
         if not holding:
             return None
         holding.current_price = current_price
         holding.market_value = holding.quantity * current_price
-        holding.updated_at = datetime.utcnow()
+        holding.updated_at = datetime.now(timezone.utc)
         await self.session.commit()
         await self.session.refresh(holding)
         await self._recalculate_portfolio_value(portfolio_id)
@@ -156,7 +152,7 @@ class PortfolioService:
         portfolio_id: int,
         asset_type: str,
         quantity: float,
-    ) -> Optional[PortfolioHolding]:
+    ) -> PortfolioHolding | None:
         """減持（賣出部分持倉）"""
         holding = await self._get_holding(portfolio_id, asset_type)
         if not holding:
@@ -166,7 +162,7 @@ class PortfolioService:
                 f"Cannot reduce holding: current={holding.quantity}, requested={quantity}"
             )
         holding.quantity -= quantity
-        holding.updated_at = datetime.utcnow()
+        holding.updated_at = datetime.now(timezone.utc)
         if holding.quantity == 0:
             await self.session.delete(holding)
         await self.session.commit()
@@ -181,7 +177,7 @@ class PortfolioService:
 
     async def _get_holding(
         self, portfolio_id: int, asset_type: str
-    ) -> Optional[PortfolioHolding]:
+    ) -> PortfolioHolding | None:
         stmt = select(PortfolioHolding).where(
             PortfolioHolding.portfolio_id == portfolio_id,
             PortfolioHolding.asset_type == asset_type,
@@ -252,7 +248,7 @@ class PortfolioService:
             "total_return_pct": round(total_return, 2),
             "unrealized_pnl": round(current - invested, 2),
             "positions": positions,
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def add_cash(self, portfolio_id: int, amount: float) -> Portfolio:
@@ -261,7 +257,7 @@ class PortfolioService:
         if not portfolio:
             raise ValueError(f"Portfolio {portfolio_id} not found")
         portfolio.current_value += amount
-        portfolio.updated_at = datetime.utcnow()
+        portfolio.updated_at = datetime.now(timezone.utc)
         await self.session.commit()
         await self.session.refresh(portfolio)
         return portfolio
@@ -274,7 +270,7 @@ class PortfolioService:
         if portfolio.current_value < amount:
             raise ValueError("Insufficient cash balance")
         portfolio.current_value -= amount
-        portfolio.updated_at = datetime.utcnow()
+        portfolio.updated_at = datetime.now(timezone.utc)
         await self.session.commit()
         await self.session.refresh(portfolio)
         return portfolio
@@ -292,5 +288,5 @@ class PortfolioService:
         portfolio = result2.scalar_one_or_none()
         if portfolio:
             portfolio.current_value = holdings_value + (portfolio.initial_capital - holdings_value)
-            portfolio.updated_at = datetime.utcnow()
+            portfolio.updated_at = datetime.now(timezone.utc)
             await self.session.commit()

@@ -1,6 +1,7 @@
 """
 T062 - 決策可解釋性 (SHAP / feature_importance / rule-based) 單元測試
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -83,7 +84,7 @@ def test_recommendation_schema_accepts_explanation():
     from datetime import datetime
 
     from app.api.schemas.decisions import DecisionResponse, RecommendationResponse
-    from app.models.decision import DecisionType, DecisionSource
+    from app.models.decision import DecisionSource, DecisionType
 
     decision = DecisionResponse(
         id=1,
@@ -97,8 +98,8 @@ def test_recommendation_schema_accepts_explanation():
         stop_loss=1980.0,
         reason_zh="技術面與基本面共振",
         reason_en="Technical and fundamental aligned",
-        indicators_snapshot="{\"rsi\": 55}",
-        analysis_scores="{\"technical\": 0.4}",
+        indicators_snapshot='{"rsi": 55}',
+        analysis_scores='{"technical": 0.4}',
         is_executed=False,
         executed_at=None,
         execution_price=None,

@@ -2,12 +2,12 @@
 Redis client wrapper for caching and session storage
 """
 import json
-from typing import Any, Optional
+from typing import Any
 
-from .config import get_redis_client, init_redis
+from .config import get_redis_client
 
 
-async def set_json(key: str, value: Any, ttl: Optional[int] = None) -> None:
+async def set_json(key: str, value: Any, ttl: int | None = None) -> None:
     """Store JSON-serializable value in Redis"""
     client = get_redis_client()
     data = json.dumps(value)
@@ -17,7 +17,7 @@ async def set_json(key: str, value: Any, ttl: Optional[int] = None) -> None:
         await client.set(key, data)
 
 
-async def get_json(key: str) -> Optional[Any]:
+async def get_json(key: str) -> Any | None:
     """Retrieve JSON value from Redis"""
     client = get_redis_client()
     data = await client.get(key)
@@ -26,7 +26,7 @@ async def get_json(key: str) -> Optional[Any]:
     return json.loads(data)
 
 
-async def incr(key: str, amount: int = 1, ttl: Optional[int] = None) -> int:
+async def incr(key: str, amount: int = 1, ttl: int | None = None) -> int:
     """Increment integer value with optional TTL"""
     client = get_redis_client()
     new_val = await client.incrby(key, amount)

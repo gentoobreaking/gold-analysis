@@ -1,37 +1,31 @@
 """
 Authentication routes - login, register, token management
 """
-from datetime import timedelta
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from app.models.user import User
-from app.db.config import get_db_session
+from app.api.middleware.auth import get_current_active_user
+from app.api.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    MessageResponse,
+    RegisterRequest,
+    RegisterResponse,
+    TokenResponse,
+    UpdateProfileRequest,
+    UserDetailResponse,
+    UserResponse,
+)
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
-    verify_password,
     get_password_hash,
+    verify_password,
 )
-from app.core.config import settings
-from app.api.schemas.auth import (
-    RegisterRequest,
-    LoginRequest,
-    TokenResponse,
-    UserResponse,
-    UserDetailResponse,
-    RegisterResponse,
-    LoginResponse,
-    MessageResponse,
-    ChangePasswordRequest,
-    UpdateProfileRequest,
-)
-from app.api.middleware.auth import get_current_active_user
-
+from app.db.config import get_db_session
+from app.models.user import User
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -41,7 +35,7 @@ router = APIRouter()
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> RegisterResponse:
     """
     Register a new user account.
@@ -88,7 +82,7 @@ async def register(
 @router.post("/login", response_model=LoginResponse)
 async def login(
     request: LoginRequest,
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> LoginResponse:
     """
     Authenticate user and return JWT tokens.
@@ -121,8 +115,8 @@ async def login(
     refresh_token = create_refresh_token(user.id)
     
     # Update last login
-    from datetime import datetime
-    user.last_login = datetime.utcnow()
+    from datetime import datetime, timezone
+    user.last_login = datetime.now(timezone.utc)
     await db.commit()
     
     return LoginResponse(
@@ -139,10 +133,10 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     refresh_token: str,
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> TokenResponse:
     """Refresh access token using refresh token."""
-    from app.core.security import verify_token, create_access_token, create_refresh_token
+    from app.core.security import create_access_token, create_refresh_token, verify_token
     
     payload = verify_token(refresh_token)
     if payload is None or payload.get("type") != "refresh":
@@ -175,7 +169,7 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserDetailResponse)
 async def get_current_user_profile(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
 ) -> UserDetailResponse:
     """Get current user's profile."""
     return UserDetailResponse.model_validate(current_user)
@@ -184,8 +178,8 @@ async def get_current_user_profile(
 @router.patch("/me", response_model=UserDetailResponse)
 async def update_profile(
     request: UpdateProfileRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> UserDetailResponse:
     """Update current user's profile."""
     update_data = request.model_dump(exclude_unset=True)
@@ -201,7 +195,7 @@ async def update_profile(
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user_public_profile(
     user_id: int,
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> UserResponse:
     """Get user's public profile."""
     result = await db.execute(select(User).where(User.id == user_id))
@@ -218,7 +212,7 @@ async def get_user_public_profile(
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
 ) -> MessageResponse:
     """Logout current user (client should discard tokens)."""
     return MessageResponse(message="登出成功")

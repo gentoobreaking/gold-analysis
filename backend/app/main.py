@@ -3,22 +3,23 @@ Gold Analysis Core - Main Application Entry Point
 黃金價格多維度決策輔助系統
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic_settings import BaseSettings
-import uvicorn
-import sqlite3
-import os
-from datetime import datetime, timedelta
-from typing import Optional
-from contextlib import asynccontextmanager
 import logging
+import os
+import sqlite3
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
+
 import numpy as np
 import pandas as pd
-
+import uvicorn
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic_settings import BaseSettings
+
+
 class Settings(BaseSettings):
     """Application settings"""
 
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-async def _fetch_real_price_df(days: int = 400) -> Optional[pd.DataFrame]:
+async def _fetch_real_price_df(days: int = 400) -> pd.DataFrame | None:
     """從 price_history 取得真實黃金價格，構造成監控/重訓所需 DataFrame。
 
     回傳含 date / close / label 的 DataFrame；取數失敗或樣本不足時回傳 None，
@@ -46,7 +47,7 @@ async def _fetch_real_price_df(days: int = 400) -> Optional[pd.DataFrame]:
     conn = None
     try:
         conn = _get_db()
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         rows = conn.execute(
             "SELECT timestamp, local_buy FROM price_history "
             "WHERE metal='gold' AND timestamp >= ? ORDER BY timestamp ASC",
@@ -89,10 +90,10 @@ async def run_monitor_job():
         if prices is None:
             return
         result = run_monitor(prices)
-        result = {**result, "source": "price_history", "generated_at": datetime.utcnow().isoformat()}
+        result = {**result, "source": "price_history", "generated_at": datetime.now(timezone.utc).isoformat()}
         logger.info("[排程] run_monitor: %s", result)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("[排程] run_monitor 失敗: %s", exc)
+    except Exception:
+        logger.exception("[排程] run_monitor 失敗")
 
 
 async def run_retrain_job():
@@ -104,8 +105,8 @@ async def run_retrain_job():
             return
         result = run_retrain(prices, trigger="cron")
         logger.info("[排程] run_retrain: %s", result)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("[排程] run_retrain 失敗: %s", exc)
+    except Exception:
+        logger.exception("[排程] run_retrain 失敗")
 
 
 scheduler = AsyncIOScheduler()
@@ -203,7 +204,7 @@ async def get_price_history(days: int = 7):
     """獲取歷史價格"""
     conn = _get_db()
     try:
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         rows = conn.execute(
             "SELECT local_sell AS sell, local_buy AS buy, timestamp "
             "FROM price_history WHERE metal='gold' AND timestamp >= ? "
@@ -279,7 +280,7 @@ async def get_decision_recommend():
             "signal": signal,
             "reason": reasons,
             "price": prices[-1] if prices else 0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     finally:
         conn.close()
@@ -315,7 +316,6 @@ async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
     timeframe: 1m, 5m, 15m, 1H, 4H, 1D
     資料來源：gold_monitor_pro.db（台灣銀行黃金存摺每日收盤價）
     """
-    import json
     from .agents.technical_analysis import TechnicalAnalysisAgent
 
     # 從 SQLite 讀取全量歷史（台灣銀行黃金存摺牌告價）
@@ -430,7 +430,8 @@ async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
 
 # ── Forward Curve API ─────────────────────────────────────────────────────────
 
-from app.routers.forward_curve import get_forward_curve_data, ForwardCurveResponse
+from app.routers.forward_curve import ForwardCurveResponse, get_forward_curve_data
+
 
 @app.get("/api/forward-curve", response_model=ForwardCurveResponse)
 async def forward_curve():
@@ -477,9 +478,9 @@ async def seasonality():
     黃金季節性分析。
     返回月度平均漲跌（市場研究參考值）、強度評級、當前季節分析。
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     current_month = now.month
 
     # 從 SQLite 讀取月均價（台灣銀行黃金存摺）
@@ -499,7 +500,7 @@ async def seasonality():
         conn.close()
 
     # 月均價
-    monthly_avg = {ym: sum(v)/len(v) for ym, v in monthly_prices.items()}
+    {ym: sum(v)/len(v) for ym, v in monthly_prices.items()}
 
     monthly_stats = []
     for m in range(1, 13):
@@ -552,7 +553,8 @@ async def seasonality():
 @app.get("/api/contracts")
 async def get_contracts():
     """期貨合約資訊：合約規格 + 月份合約列表"""
-    now = datetime.now()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
 
     # ── 靜態合約規格 ─────────────────────────────────────────────
     specs = {
@@ -577,7 +579,7 @@ async def get_contracts():
     def _next_n_months(n: int):
         """取得最近 n 個未到期的月份合約"""
         contracts = []
-        d = datetime(now.year, now.month, 1)
+        d = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
         while len(contracts) < n:
             month = d.month
             year = d.year
@@ -598,15 +600,14 @@ async def get_contracts():
             })
             # 下一個月
             d = datetime(year if month < 12 else year + 1,
-                         (month % 12) + 1, 1)
+                         (month % 12) + 1, 1, tzinfo=timezone.utc)
         return contracts
 
     def _estimate_last_trading_day(year: int, month: int) -> str:
         """估算：每月 25 日，若為週末/假日往前推至最近營業日"""
-        import calendar
         # 每月 25 日
         day = 25
-        d = datetime(year, month, day)
+        d = datetime(year, month, day, tzinfo=timezone.utc)
         # 往前推到非週末
         while d.weekday() >= 5:  # 5=Sat, 6=Sun
             d = d - timedelta(days=1)
@@ -624,15 +625,18 @@ async def get_contracts():
         "fetched_at": now.strftime("%Y/%m/%d %H:%M"),
     }
 # ── Merged advanced ops triggers (approach 2) ──────────────────────────────
-from app.routers.advanced_ops import ml_router as _ml_ops_router, trade_router as _trade_router
+from app.routers.advanced_ops import ml_router as _ml_ops_router
+from app.routers.advanced_ops import trade_router as _trade_router
+
 app.include_router(_ml_ops_router)
 app.include_router(_trade_router)
 
 # T063/T064: 掛載 API 路由（app/api/routes/* 原先未 include_router，
 # 導致回測與投組風險端點在執行期 404）。無前綴者在此給定 /api/backtest。
 from app.api.routes.backtest import router as _backtest_router
-from app.api.routes.portfolio_risk import router as _portfolio_risk_router
 from app.api.routes.macro_digest import router as _macro_digest_router
+from app.api.routes.portfolio_risk import router as _portfolio_risk_router
+
 app.include_router(_backtest_router, prefix="/api/backtest")
 app.include_router(_portfolio_risk_router)
 app.include_router(_macro_digest_router)

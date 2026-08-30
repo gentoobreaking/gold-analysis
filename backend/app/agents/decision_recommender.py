@@ -6,12 +6,11 @@
 Author: 碼農 1 號
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from dataclasses import dataclass
-from enum import Enum
 import logging
-import math
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
 
 from .base import GoldAnalysisAgent
 
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class DecisionType(str, Enum):
     """決策類型枚舉"""
+
     STRONG_BUY = "strong_buy"
     BUY = "buy"
     HOLD = "hold"
@@ -29,17 +29,19 @@ class DecisionType(str, Enum):
 
 class PositionSize(str, Enum):
     """倉位大小枚舉"""
-    MAXIMUM = "maximum"    # 80-100% 倉位
-    LARGE = "large"        # 60-80% 倉位
-    MEDIUM = "medium"      # 40-60% 倉位
-    SMALL = "small"        # 20-40% 倉位
-    MINIMUM = "minimum"    # 10-20% 倉位
-    NONE = "none"          # 0% 倉位（不建議进场）
+
+    MAXIMUM = "maximum"  # 80-100% 倉位
+    LARGE = "large"  # 60-80% 倉位
+    MEDIUM = "medium"  # 40-60% 倉位
+    SMALL = "small"  # 20-40% 倉位
+    MINIMUM = "minimum"  # 10-20% 倉位
+    NONE = "none"  # 0% 倉位（不建議进场）
 
 
 @dataclass
 class TradingRecommendation:
     """交易建議"""
+
     decision_type: DecisionType
     position_size: PositionSize
     entry_price: float
@@ -55,10 +57,10 @@ class TradingRecommendation:
 class DecisionRecommendationAgent(GoldAnalysisAgent):
     """
     決策推薦 Agent
-    
+
     整合技術分析、基本面分析、風險評估的結果，
     生成最終的黃金投資建議。
-    
+
     Example:
         agent = DecisionRecommendationAgent()
         result = await agent.analyze({
@@ -69,16 +71,16 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             "risk_assessment": {...}       # 風險評估結果
         })
     """
-    
+
     def __init__(
         self,
         name: str = "decision_recommender",
         model: str = "qclaw/modelroute",
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None,
     ):
         """
         初始化決策推薦 Agent
-        
+
         Args:
             name: Agent 名稱
             model: 模型名稱
@@ -90,46 +92,56 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             model=model,
             temperature=0.4,
             max_tokens=3000,
-            config=config
+            config=config,
         )
-        
+
         # 維度權重配置
-        self.dimension_weights = config.get("dimension_weights", {
-            "technical": 0.35,
-            "fundamental": 0.30,
-            "risk": 0.35
-        }) if config else {
-            "technical": 0.35,
-            "fundamental": 0.30,
-            "risk": 0.35
-        }
-        
+        self.dimension_weights = (
+            config.get("dimension_weights", {"technical": 0.35, "fundamental": 0.30, "risk": 0.35})
+            if config
+            else {"technical": 0.35, "fundamental": 0.30, "risk": 0.35}
+        )
+
         # 止損止盈配置
-        self.stop_loss_config = config.get("stop_loss", {
-            "atr_multiplier": 2.0,      # ATR 倍數
-            "max_loss_percent": 3.0,    # 最大虧損百分比
-            "support_resistance_distance": 0.015  # 支撐阻力位距離
-        }) if config else {
-            "atr_multiplier": 2.0,
-            "max_loss_percent": 3.0,
-            "support_resistance_distance": 0.015
-        }
-        
+        self.stop_loss_config = (
+            config.get(
+                "stop_loss",
+                {
+                    "atr_multiplier": 2.0,  # ATR 倍數
+                    "max_loss_percent": 3.0,  # 最大虧損百分比
+                    "support_resistance_distance": 0.015,  # 支撐阻力位距離
+                },
+            )
+            if config
+            else {
+                "atr_multiplier": 2.0,
+                "max_loss_percent": 3.0,
+                "support_resistance_distance": 0.015,
+            }
+        )
+
         # 倉位配置
-        self.position_config = config.get("position", {
-            "max_position": 1.0,        # 最大倉位 (100%)
-            "min_confidence": 0.5,     # 最低置信度
-            "high_confidence": 0.8,     # 高置信度閾值
-        }) if config else {
-            "max_position": 1.0,
-            "min_confidence": 0.5,
-            "high_confidence": 0.8,
-        }
-    
-    async def analyze(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        self.position_config = (
+            config.get(
+                "position",
+                {
+                    "max_position": 1.0,  # 最大倉位 (100%)
+                    "min_confidence": 0.5,  # 最低置信度
+                    "high_confidence": 0.8,  # 高置信度閾值
+                },
+            )
+            if config
+            else {
+                "max_position": 1.0,
+                "min_confidence": 0.5,
+                "high_confidence": 0.8,
+            }
+        )
+
+    async def analyze(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         生成交易決策建議
-        
+
         Args:
             context: 包含以下字段的字典:
                 - date: 分析日期
@@ -137,66 +149,53 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 - technical_analysis: 技術分析結果（可選）
                 - fundamental_analysis: 基本面分析結果（可選）
                 - risk_assessment: 風險評估結果（可選）
-                
+
         Returns:
             交易決策建議
         """
         logger.info(f"Generating trading decision for {context.get('date', 'unknown')}")
-        
-        date = context.get("date", datetime.now().strftime("%Y-%m-%d"))
+
+        date = context.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
         current_price = context.get("current_price", 0)
-        
+
         # 1. 提取各維度分析結果
         technical = context.get("technical_analysis", {})
         fundamental = context.get("fundamental_analysis", {})
         risk_assessment = context.get("risk_assessment", {})
-        
+
         # 2. 提取各維度評分
         tech_score = self._extract_score(technical, "technical_score", "trend_score")
         fund_score = self._extract_score(fundamental, "fundamental_score")
         risk_score = self._extract_score(risk_assessment, "risk_score", "risk_level_score")
-        
+
         # 3. 計算加權綜合評分
-        composite_score = self._calculate_composite_score(
-            tech_score, fund_score, risk_score
-        )
-        
+        composite_score = self._calculate_composite_score(tech_score, fund_score, risk_score)
+
         # 4. 計算置信度
-        confidence = self._calculate_confidence(
-            technical, fundamental, risk_assessment
-        )
-        
+        confidence = self._calculate_confidence(technical, fundamental, risk_assessment)
+
         # 5. 確定決策類型
-        decision = self._determine_decision(
-            composite_score, confidence
-        )
-        
+        decision = self._determine_decision(composite_score, confidence)
+
         # 6. 計算止損止盈位
-        stop_loss, take_profit = self._calculate_stops(
-            current_price, technical, risk_assessment
-        )
-        
+        stop_loss, take_profit = self._calculate_stops(current_price, technical, risk_assessment)
+
         # 7. 計算風險回報比
         risk = abs(current_price - stop_loss)
         reward = abs(take_profit - current_price)
         risk_reward_ratio = round(reward / risk, 2) if risk > 0 else 0
-        
+
         # 8. 計算建議倉位
-        position_size = self._calculate_position_size(
-            composite_score, confidence, risk_assessment
-        )
-        
+        position_size = self._calculate_position_size(composite_score, confidence, risk_assessment)
+
         # 9. 計算目標價位
-        price_target = self._calculate_price_target(
-            current_price, decision, technical, fundamental
-        )
-        
+        price_target = self._calculate_price_target(current_price, decision, technical, fundamental)
+
         # 10. 生成完整理由
         reasoning = self._generate_reasoning(
-            decision, composite_score, tech_score, 
-            fund_score, risk_score, confidence
+            decision, composite_score, tech_score, fund_score, risk_score, confidence
         )
-        
+
         # 11. 構建最終建議
         recommendation = TradingRecommendation(
             decision_type=decision,
@@ -208,9 +207,9 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             confidence=round(confidence, 3),
             reasoning_zh=reasoning["zh"],
             reasoning_en=reasoning["en"],
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
-        
+
         # 12. 生成完整報告
         report = self._generate_report(
             date=date,
@@ -220,15 +219,16 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             dimension_scores={
                 "technical": tech_score,
                 "fundamental": fund_score,
-                "risk": risk_score
+                "risk": risk_score,
             },
             price_target=price_target,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
         # 13. 決策可解釋性（規則決策：top 貢獻因子 + 觸發規則）— T062
         try:
             from app.ml.explainer import explain_rule_decision
+
             report["explanation"] = explain_rule_decision(
                 scores={
                     "technical": tech_score,
@@ -240,16 +240,12 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 decision_type=recommendation.decision_type.value,
                 reasoning_zh=reasoning["zh"],
             )
-        except Exception:  # noqa: BLE001 - 解釋為輔助資訊，失敗不影響主決策
+        except Exception:  # noqa: BLE001,S110 - 解釋為輔助資訊，失敗不影響主決策
             pass
 
         return report
-    
-    def _extract_score(
-        self, 
-        data: Dict[str, Any], 
-        *keys: str
-    ) -> float:
+
+    def _extract_score(self, data: dict[str, Any], *keys: str) -> float:
         """從數據中提取評分"""
         for key in keys:
             if key in data:
@@ -259,80 +255,73 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                     return 0.0  # 默認值
                 return float(value)
         return 0.0  # 默認中性分數
-    
+
     def _calculate_composite_score(
-        self,
-        tech_score: float,
-        fund_score: float,
-        risk_score: float
+        self, tech_score: float, fund_score: float, risk_score: float
     ) -> float:
         """
         計算加權綜合評分
-        
+
         Args:
             tech_score: 技術分析評分 (-1 到 1)
             fund_score: 基本面分析評分 (-1 到 1)
             risk_score: 風險評估評分 (-1 到 1)
-            
+
         Returns:
             加權評分 (-1 到 1)
         """
         # 技術分數標準化到 0-1（0=中性，1=完全多頭）
         tech_normalized = (tech_score + 1) / 2
-        
+
         # 基本面分數標準化
         fund_normalized = (fund_score + 1) / 2
-        
+
         # 風險分數標準化（風險低=1，風險高=0）
         risk_normalized = 1 - (risk_score + 1) / 2 if risk_score != 0 else 0.5
-        
+
         # 加權計算
         composite = (
-            tech_normalized * self.dimension_weights["technical"] +
-            fund_normalized * self.dimension_weights["fundamental"] +
-            risk_normalized * self.dimension_weights["risk"]
+            tech_normalized * self.dimension_weights["technical"]
+            + fund_normalized * self.dimension_weights["fundamental"]
+            + risk_normalized * self.dimension_weights["risk"]
         )
-        
+
         # 轉換回 -1 到 1 的範圍
         composite = (composite - 0.5) * 2
-        
+
         return round(composite, 4)
-    
+
     def _calculate_confidence(
         self,
-        technical: Dict[str, Any],
-        fundamental: Dict[str, Any],
-        risk_assessment: Dict[str, Any]
+        technical: dict[str, Any],
+        fundamental: dict[str, Any],
+        risk_assessment: dict[str, Any],
     ) -> float:
         """計算決策置信度"""
         confidences = []
-        
+
         # 技術分析置信度
         if "confidence" in technical:
             confidences.append(float(technical["confidence"]))
         elif "signal_strength" in technical:
             confidences.append(float(technical["signal_strength"]))
-        
+
         # 基本面分析置信度
         if "confidence" in fundamental:
             confidences.append(float(fundamental["confidence"]))
-        
+
         # 風險評估置信度
         if "confidence" in risk_assessment:
             confidences.append(float(risk_assessment["confidence"]))
-        
+
         if confidences:
             avg_confidence = sum(confidences) / len(confidences)
         else:
             avg_confidence = 0.5  # 默認置信度
-        
+
         return avg_confidence
-    
-    def _determine_decision(
-        self,
-        composite_score: float,
-        confidence: float
-    ) -> DecisionType:
+
+    def _determine_decision(self, composite_score: float, confidence: float) -> DecisionType:
         """根據綜合評分和置信度確定決策"""
         # 基礎決策（基於評分）
         if composite_score > 0.5:
@@ -345,7 +334,7 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             base_decision = DecisionType.SELL
         else:
             base_decision = DecisionType.STRONG_SELL
-        
+
         # 置信度調整
         if confidence < self.position_config["min_confidence"]:
             # 低置信度，提高門檻
@@ -355,33 +344,31 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 return DecisionType.SELL
             else:
                 return DecisionType.HOLD
-        
+
         return base_decision
-    
+
     def _calculate_stops(
-        self,
-        current_price: float,
-        technical: Dict[str, Any],
-        risk_assessment: Dict[str, Any]
+        self, current_price: float, technical: dict[str, Any], risk_assessment: dict[str, Any]
     ) -> tuple:
         """計算止損止盈位"""
         # 從技術分析獲取 ATR 或波動率
         atr = technical.get("atr", current_price * 0.008)  # 默認 0.8%
-        
+
         # 從風險評估獲取最大虧損
-        max_loss_pct = risk_assessment.get("max_loss_percent", 
-                                           self.stop_loss_config["max_loss_percent"])
-        
+        max_loss_pct = risk_assessment.get(
+            "max_loss_percent", self.stop_loss_config["max_loss_percent"]
+        )
+
         # 止損位計算
         atr_stop = current_price - (atr * self.stop_loss_config["atr_multiplier"])
         percent_stop = current_price * (1 - max_loss_pct / 100)
-        
+
         # 取更保守的止損
         stop_loss = min(atr_stop, percent_stop)
-        
+
         # 止盈位計算
         atr_multiplier = self.stop_loss_config["atr_multiplier"]
-        
+
         # 根據趨勢方向調整止盈
         trend = technical.get("trend", "neutral")
         if trend == "bullish":
@@ -393,14 +380,11 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
         else:
             # 中性：止盈設在 1.5 倍
             take_profit = current_price + (atr * atr_multiplier * 1.5)
-        
+
         return stop_loss, take_profit
-    
+
     def _calculate_position_size(
-        self,
-        composite_score: float,
-        confidence: float,
-        risk_assessment: Dict[str, Any]
+        self, composite_score: float, confidence: float, risk_assessment: dict[str, Any]
     ) -> PositionSize:
         """計算建議倉位"""
         # 基礎倉位（基於評分）
@@ -416,7 +400,7 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             base_position = PositionSize.MINIMUM
         else:
             base_position = PositionSize.NONE
-        
+
         # 風險調整
         risk_level = risk_assessment.get("risk_level", "medium")
         if risk_level == "high":
@@ -425,44 +409,43 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 base_position = PositionSize.MEDIUM
             elif base_position == PositionSize.MEDIUM:
                 base_position = PositionSize.SMALL
-        elif risk_level == "low":
+        elif risk_level == "low" and base_position == PositionSize.SMALL:
             # 低風險，可以提高倉位
-            if base_position == PositionSize.SMALL:
-                base_position = PositionSize.MEDIUM
-        
+            base_position = PositionSize.MEDIUM
+
         return base_position
-    
+
     def _calculate_price_target(
         self,
         current_price: float,
         decision: DecisionType,
-        technical: Dict[str, Any],
-        fundamental: Dict[str, Any]
-    ) -> Dict[str, float]:
+        technical: dict[str, Any],
+        fundamental: dict[str, Any],
+    ) -> dict[str, float]:
         """計算目標價位"""
         targets = {}
-        
+
         # 短期目標（1-2週）
         if decision in [DecisionType.STRONG_BUY, DecisionType.BUY]:
             # 多頭：目標 = 當前 + ATR * 倍數
             atr = technical.get("atr", current_price * 0.008)
             targets["short_term"] = round(current_price + atr * 3, 2)
             targets["medium_term"] = round(current_price * 1.03, 2)  # 3%
-            targets["long_term"] = round(current_price * 1.05, 2)   # 5%
+            targets["long_term"] = round(current_price * 1.05, 2)  # 5%
         elif decision in [DecisionType.STRONG_SELL, DecisionType.SELL]:
             # 空頭：目標 = 當前 - ATR * 倍數
             atr = technical.get("atr", current_price * 0.008)
             targets["short_term"] = round(current_price - atr * 3, 2)
             targets["medium_term"] = round(current_price * 0.97, 2)  # -3%
-            targets["long_term"] = round(current_price * 0.95, 2)     # -5%
+            targets["long_term"] = round(current_price * 0.95, 2)  # -5%
         else:
             # 持有：區間震蕩
             targets["short_term"] = round(current_price * 1.01, 2)
             targets["medium_term"] = current_price
             targets["long_term"] = round(current_price * 1.02, 2)
-        
+
         return targets
-    
+
     def _generate_reasoning(
         self,
         decision: DecisionType,
@@ -470,12 +453,12 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
         tech_score: float,
         fund_score: float,
         risk_score: float,
-        confidence: float
-    ) -> Dict[str, str]:
+        confidence: float,
+    ) -> dict[str, str]:
         """生成決策理由"""
         # 中文理由
         zh_parts = []
-        
+
         if decision in [DecisionType.STRONG_BUY, DecisionType.BUY]:
             zh_parts.append("技術面與基本面形成共振")
             if tech_score > 0.3:
@@ -493,14 +476,14 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 zh_parts.append("技術形態偏弱")
             if fund_score < 0:
                 zh_parts.append("基本面支撐不足")
-        
+
         zh_parts.append(f"綜合評分: {composite_score:.2f}，置信度: {confidence:.1%}")
-        
+
         zh_reasoning = "。".join(zh_parts)
-        
+
         # 英文理由
         en_parts = []
-        
+
         if decision in [DecisionType.STRONG_BUY, DecisionType.BUY]:
             en_parts.append("Technical and fundamental factors are aligned")
             if confidence > 0.7:
@@ -512,26 +495,23 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
         else:
             en_parts.append("Risk factors outweigh opportunities")
             en_parts.append(f"Composite score: {composite_score:.2f}")
-        
+
         en_reasoning = ". ".join(en_parts)
-        
-        return {
-            "zh": zh_reasoning,
-            "en": en_reasoning
-        }
-    
+
+        return {"zh": zh_reasoning, "en": en_reasoning}
+
     def _generate_report(
         self,
         date: str,
         current_price: float,
         recommendation: TradingRecommendation,
         composite_score: float,
-        dimension_scores: Dict[str, float],
-        price_target: Dict[str, float],
-        reasoning: Dict[str, str]
-    ) -> Dict[str, Any]:
+        dimension_scores: dict[str, float],
+        price_target: dict[str, float],
+        reasoning: dict[str, str],
+    ) -> dict[str, Any]:
         """生成完整分析報告"""
-        
+
         # 決策翻譯
         decision_map = {
             DecisionType.STRONG_BUY: ("強烈買入", "Strong Buy"),
@@ -540,7 +520,7 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             DecisionType.SELL: ("賣出", "Sell"),
             DecisionType.STRONG_SELL: ("強烈賣出", "Strong Sell"),
         }
-        
+
         # 倉位翻譯
         position_map = {
             PositionSize.MAXIMUM: ("極重倉 (80-100%)", "Maximum (80-100%)"),
@@ -550,11 +530,10 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
             PositionSize.MINIMUM: ("試探性倉位 (10-20%)", "Minimum (10-20%)"),
             PositionSize.NONE: ("不建議进场", "No Position"),
         }
-        
+
         report = {
             "date": date,
             "current_price": current_price,
-            
             # 決策摘要
             "decision": {
                 "type": recommendation.decision_type.value,
@@ -565,30 +544,31 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 "position_size_en": position_map[recommendation.position_size][1],
                 "confidence": recommendation.confidence,
             },
-            
             # 進場與風險控制
             "entry": {
                 "entry_price": recommendation.entry_price,
                 "stop_loss": recommendation.stop_loss,
                 "stop_loss_percent": round(
-                    (recommendation.entry_price - recommendation.stop_loss) / 
-                    recommendation.entry_price * 100, 2
+                    (recommendation.entry_price - recommendation.stop_loss)
+                    / recommendation.entry_price
+                    * 100,
+                    2,
                 ),
                 "take_profit": recommendation.take_profit,
                 "take_profit_percent": round(
-                    (recommendation.take_profit - recommendation.entry_price) / 
-                    recommendation.entry_price * 100, 2
+                    (recommendation.take_profit - recommendation.entry_price)
+                    / recommendation.entry_price
+                    * 100,
+                    2,
                 ),
                 "risk_reward_ratio": recommendation.risk_reward_ratio,
             },
-            
             # 目標價位
             "targets": {
                 "short_term": price_target["short_term"],
                 "medium_term": price_target["medium_term"],
                 "long_term": price_target["long_term"],
             },
-            
             # 分項評分
             "scores": {
                 "composite": composite_score,
@@ -596,59 +576,53 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 "fundamental": round(dimension_scores["fundamental"], 4),
                 "risk": round(dimension_scores["risk"], 4),
             },
-            
             # 維度權重
             "weights": self.dimension_weights,
-            
             # 理由
             "reasoning": {
                 "zh": recommendation.reasoning_zh,
                 "en": recommendation.reasoning_en,
             },
-            
             # 風險提示
             "risk_warning": self._generate_risk_warning(recommendation),
-            
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        
+
         logger.info(
             f"Decision generated: {recommendation.decision_type.value} "
             f"at {current_price}, confidence: {recommendation.confidence:.1%}"
         )
-        
+
         return report
-    
-    def _generate_risk_warning(
-        self,
-        recommendation: TradingRecommendation
-    ) -> Dict[str, str]:
+
+    def _generate_risk_warning(self, recommendation: TradingRecommendation) -> dict[str, str]:
         """生成風險提示"""
         warnings_zh = []
         warnings_en = []
-        
+
         # 置信度風險
         if recommendation.confidence < 0.6:
             warnings_zh.append("置信度中等，建議控制倉位")
             warnings_en.append("Moderate confidence - consider position sizing")
-        
+
         # 止損風險
-        stop_pct = abs(recommendation.entry_price - recommendation.stop_loss) / recommendation.entry_price
+        stop_pct = (
+            abs(recommendation.entry_price - recommendation.stop_loss) / recommendation.entry_price
+        )
         if stop_pct > 0.03:
             warnings_zh.append(f"止損幅度較大 ({stop_pct:.1%})，需注意資金管理")
             warnings_en.append(f"Large stop loss ({stop_pct:.1%}) - manage position carefully")
-        
+
         # 風險回報比風險
         if recommendation.risk_reward_ratio < 1.5:
             warnings_zh.append(f"風險回報比 ({recommendation.risk_reward_ratio}:1) 偏低")
-            warnings_en.append(f"Risk/reward ratio ({recommendation.risk_reward_ratio}:1) is below optimal")
-        
+            warnings_en.append(
+                f"Risk/reward ratio ({recommendation.risk_reward_ratio}:1) is below optimal"
+            )
+
         # 倉位風險
         if recommendation.position_size in [PositionSize.MAXIMUM, PositionSize.LARGE]:
             warnings_zh.append("重倉操作，務必設置止損")
             warnings_en.append("Large position - always use stop loss")
-        
-        return {
-            "zh": warnings_zh,
-            "en": warnings_en
-        }
+
+        return {"zh": warnings_zh, "en": warnings_en}

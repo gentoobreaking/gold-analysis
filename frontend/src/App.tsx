@@ -1,22 +1,22 @@
 /**
  * Gold Analysis System - 主應用
  */
-import { Routes, Route } from 'react-router-dom';
-import { MainLayout } from '@components/layout';
-import Dashboard from '@components/pages/Dashboard';
-import Chart from '@components/pages/Chart';
-import Analysis from '@components/pages/Analysis';
-import Summary from '@components/pages/Summary';
-import TechnicalsPage from '@components/pages/TechnicalsPage';
-import DecisionDetail from '@components/pages/DecisionDetail';
-import ForwardCurvePage from '@components/pages/ForwardCurvePage';
-import SeasonalityPage from '@components/pages/SeasonalityPage';
-import ContractsPage from '@components/pages/ContractsPage';
-import News from '@components/pages/News';
-import History from '@components/pages/History';
-import MLOperations from '@components/pages/MLOperations';
-import StrategyCompare from '@components/pages/StrategyCompare';
-import RiskDashboard from '@components/pages/RiskDashboard';
+import { Routes, Route } from "react-router-dom";
+import { MainLayout } from "@components/layout";
+import Dashboard from "@components/pages/Dashboard";
+import Chart from "@components/pages/Chart";
+import Analysis from "@components/pages/Analysis";
+import Summary from "@components/pages/Summary";
+import TechnicalsPage from "@components/pages/TechnicalsPage";
+import DecisionDetail from "@components/pages/DecisionDetail";
+import ForwardCurvePage from "@components/pages/ForwardCurvePage";
+import SeasonalityPage from "@components/pages/SeasonalityPage";
+import ContractsPage from "@components/pages/ContractsPage";
+import News from "@components/pages/News";
+import History from "@components/pages/History";
+import MLOperations from "@components/pages/MLOperations";
+import StrategyCompare from "@components/pages/StrategyCompare";
+import RiskDashboard from "@components/pages/RiskDashboard";
 
 function App() {
   return (

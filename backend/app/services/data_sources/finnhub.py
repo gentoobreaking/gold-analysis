@@ -4,19 +4,16 @@ Finnhub API Adapter
 文檔: https://finnhub.io/docs/api
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 
-import httpx
-
-from .base import BaseDataSource, HistoricalData, MarketData
 from ..config import get_api_key, get_api_settings
+from .base import BaseDataSource, HistoricalData, MarketData
 
 
 class FinnhubAdapter(BaseDataSource):
     """Finnhub 數據源適配器"""
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         settings = get_api_settings()
         super().__init__(
             api_key=api_key or get_api_key("finnhub"),
@@ -63,7 +60,7 @@ class FinnhubAdapter(BaseDataSource):
         return MarketData(
             symbol=symbol.upper(),
             value=data["c"],  # current price
-            timestamp=datetime.fromtimestamp(data["t"]),
+            timestamp=datetime.fromtimestamp(data["t"], tz=timezone.utc),
             currency="USD",
             source=self.name,
             metadata={
@@ -118,7 +115,7 @@ class FinnhubAdapter(BaseDataSource):
         volumes = data.get("v", [])
         
         for i, ts in enumerate(timestamps):
-            date = datetime.fromtimestamp(ts)
+            date = datetime.fromtimestamp(ts, tz=timezone.utc)
             if start <= date <= end:
                 results.append(
                     HistoricalData(
@@ -138,8 +135,8 @@ class FinnhubAdapter(BaseDataSource):
     async def get_company_news(
         self,
         symbol: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         limit: int = 50,
     ) -> list[dict]:
         """
@@ -152,8 +149,8 @@ class FinnhubAdapter(BaseDataSource):
                 "Finnhub API key 未設定。請在 .env 設定 FINNHUB_API_KEY。"
             )
         
-        start_date = start or (datetime.now() - timedelta(days=7))
-        end_date = end or datetime.now()
+        start_date = start or (datetime.now(timezone.utc) - timedelta(days=7))
+        end_date = end or datetime.now(timezone.utc)
         
         params = {
             "symbol": symbol.upper(),
@@ -172,7 +169,7 @@ class FinnhubAdapter(BaseDataSource):
         )
         
         if not isinstance(data, list):
-            raise ValueError(f"Finnhub 新聞 API 返回異常: {data}")
+            raise TypeError(f"Finnhub 新聞 API 返回異常，預期 list 但得到 {type(data).__name__}")
         
         return data[:limit]
     
@@ -202,6 +199,6 @@ class FinnhubAdapter(BaseDataSource):
         )
         
         if not isinstance(data, list):
-            raise ValueError(f"Finnhub 新聞 API 返回異常: {data}")
+            raise TypeError(f"Finnhub 新聞 API 返回異常，預期 list 但得到 {type(data).__name__}")
         
         return data

@@ -12,6 +12,18 @@ async def get_status():
     """Get system status"""
     return {"status": "ok", "message": "API is running"}
 
-from . import auth, prices, decisions, backtest, alerts, portfolio_risk, macro_digest
 
-__all__ = ["router", "get_status", "auth", "prices", "decisions", "backtest", "alerts", "portfolio_risk", "macro_digest"]
+from . import alerts, auth, backtest, decisions, freshness, macro_digest, portfolio_risk, prices
+
+__all__ = [
+    "alerts",
+    "auth",
+    "backtest",
+    "decisions",
+    "freshness",
+    "get_status",
+    "macro_digest",
+    "portfolio_risk",
+    "prices",
+    "router",
+]

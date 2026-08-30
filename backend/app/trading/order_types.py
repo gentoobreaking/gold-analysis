@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
-from decimal import Decimal
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 # ─── 枚舉類 ─────────────────────────────────────────────────────────────────
 
@@ -85,20 +83,20 @@ class Order:
     side: OrderSide
     order_type: OrderType
     quantity: float
-    price: Optional[float] = None
-    stop_price: Optional[float] = None
-    order_id: Optional[str] = None
+    price: float | None = None
+    stop_price: float | None = None
+    order_id: str | None = None
     client_order_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     status: OrderStatus = OrderStatus.PENDING
     filled_quantity: float = 0.0
     avg_fill_price: float = 0.0
     commission: float = 0.0
     time_in_force: TimeInForce = TimeInForce.GTC
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    notes: Optional[str] = None
+    created_at: datetime = field(default_factory=datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=datetime.now(timezone.utc))
+    notes: str | None = None
     exchange: str = "mock"  # 交易所名稱
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     
     @property
     def remaining_quantity(self) -> float:
@@ -120,7 +118,7 @@ class Order:
         """訂單總價值"""
         return self.avg_fill_price * self.filled_quantity
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
             "order_id": self.order_id,
@@ -168,9 +166,9 @@ class Position:
     avg_entry_price: float
     current_price: float = 0.0
     realized_pnl: float = 0.0
-    opened_at: datetime = field(default_factory=datetime.utcnow)
+    opened_at: datetime = field(default_factory=datetime.now(timezone.utc))
     exchange: str = "mock"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     
     @property
     def market_value(self) -> float:
@@ -199,7 +197,7 @@ class Position:
         """持倉成本"""
         return self.avg_entry_price * self.quantity
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
             "symbol": self.symbol,
@@ -239,7 +237,7 @@ class AccountBalance:
     unrealized_pnl: float = 0.0
     realized_pnl_today: float = 0.0
     exchange: str = "mock"
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
     
     @property
     def buying_power(self) -> float:
@@ -251,7 +249,7 @@ class AccountBalance:
         """可用保證金"""
         return max(0.0, self.total_equity - self.margin_used)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
             "total_equity": self.total_equity,
@@ -283,19 +281,19 @@ class Trade:
         timestamp: 成交時間
     """
     trade_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    order_id: Optional[str] = None
+    order_id: str | None = None
     symbol: str = ""
     side: OrderSide = OrderSide.BUY
     quantity: float = 0.0
     price: float = 0.0
     commission: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
     
     @property
     def value(self) -> float:
         return self.quantity * self.price
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trade_id": self.trade_id,
             "order_id": self.order_id,

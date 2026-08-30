@@ -11,6 +11,7 @@
 - 因子曝險：黃金對 DXY(美元)/實質利率( proxied )/BTC(避險情緒) 等因子的
   敏感性（beta），以對數收益對因子收益回歸求得。
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,6 +27,7 @@ DEFAULT_FACTORS: list[str] = ["DXY", "REAL_YIELD", "BTC", "SPX"]
 
 
 # ─── 相關性矩陣 ────────────────────────────────────────────────────────────────
+
 
 def correlation_matrix(
     returns_by_asset: dict[str, Sequence[float]],
@@ -71,6 +73,7 @@ def correlation_matrix(
 
 
 # ─── 組合 VaR / CVaR（考慮相關性）──────────────────────────────────────────────
+
 
 def portfolio_var(
     weights: Sequence[float],
@@ -153,6 +156,7 @@ def portfolio_var_from_returns(
 
 
 # ─── 因子曝險分解 ─────────────────────────────────────────────────────────────
+
 
 def factor_exposure(
     asset_returns: Sequence[float],

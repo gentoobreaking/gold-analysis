@@ -1,14 +1,14 @@
 """
 Decision model - stores AI decision records
 """
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 from enum import Enum
-
-from sqlalchemy import String, Boolean, DateTime, Text, Integer, Float, ForeignKey, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional
 
 from app.db.config import Base
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class DecisionType(str, Enum):
@@ -40,7 +40,7 @@ class Decision(Base):
     
     # Foreign keys
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    portfolio_id: Mapped[Optional[int]] = mapped_column(ForeignKey("portfolios.id"), nullable=True, index=True)
+    portfolio_id: Mapped[int | None] = mapped_column(ForeignKey("portfolios.id"), nullable=True, index=True)
     
     # Decision details
     decision_type: Mapped[DecisionType] = mapped_column(SQLEnum(DecisionType), nullable=False)
@@ -50,35 +50,35 @@ class Decision(Base):
     # Decision data
     signal_strength: Mapped[float] = mapped_column(Float, nullable=False)  # 0.0 - 1.0
     confidence: Mapped[float] = mapped_column(Float, nullable=False)  # 0.0 - 1.0
-    price_target: Mapped[Optional[float]] = mapped_column(Float)
-    stop_loss: Mapped[Optional[float]] = mapped_column(Float)
+    price_target: Mapped[float | None] = mapped_column(Float)
+    stop_loss: Mapped[float | None] = mapped_column(Float)
     
     # Reasoning
-    reason_zh: Mapped[Optional[str]] = mapped_column(Text)  # Chinese reasoning
-    reason_en: Mapped[Optional[str]] = mapped_column(Text)  # English reasoning
+    reason_zh: Mapped[str | None] = mapped_column(Text)  # Chinese reasoning
+    reason_en: Mapped[str | None] = mapped_column(Text)  # English reasoning
     
     # Technical indicators snapshot (JSON string)
-    indicators_snapshot: Mapped[Optional[str]] = mapped_column(Text)
+    indicators_snapshot: Mapped[str | None] = mapped_column(Text)
     
     # Analysis dimensions scores (JSON string)
-    analysis_scores: Mapped[Optional[str]] = mapped_column(Text)
+    analysis_scores: Mapped[str | None] = mapped_column(Text)
     
     # Execution status
     is_executed: Mapped[bool] = mapped_column(Boolean, default=False)
-    executed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    execution_price: Mapped[Optional[float]] = mapped_column(Float)
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    execution_price: Mapped[float | None] = mapped_column(Float)
     
     # Metadata
     model_version: Mapped[str] = mapped_column(String(50), default="v1")
-    extra_data: Mapped[Optional[str]] = mapped_column(Text)  # Additional JSON metadata
+    extra_data: Mapped[str | None] = mapped_column(Text)  # Additional JSON metadata
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
     # Relationships
-    user: Mapped["User"] = relationship(back_populates="decisions")
-    portfolio: Mapped[Optional["Portfolio"]] = relationship(back_populates="decisions")
+    user: Mapped["User"] = relationship(back_populates="decisions")  # noqa: F821
+    portfolio: Mapped[Optional["Portfolio"]] = relationship(back_populates="decisions")  # noqa: F821
 
     def __repr__(self):
         return f"<Decision(id={self.id}, type={self.decision_type}, asset={self.asset}, strength={self.signal_strength})>"

@@ -10,16 +10,16 @@ import json
 import logging
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .exchange_interface import (
     ExchangeInterface,
-    OrderRequest,
-    OrderResponse,
     MarketData,
     MockExchange,
+    OrderRequest,
+    OrderResponse,
 )
-from .order_types import Order, OrderSide, OrderType, OrderStatus, Position
+from .order_types import Order, OrderSide, OrderStatus, OrderType, Position
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class ExchangeClient:
     def get_account_balance(self) -> Any:
         return self.exchange.get_account()
 
-    def get_positions(self) -> List[Any]:
+    def get_positions(self) -> list[Any]:
         return self.exchange.get_positions()
 
     def submit_order(self, request: OrderRequest) -> OrderResponse:
@@ -60,7 +60,7 @@ class ExchangeClient:
     def cancel_order(self, order_id: str) -> bool:
         return self.exchange.cancel_order(order_id)
 
-    def get_open_orders(self) -> List[Any]:
+    def get_open_orders(self) -> list[Any]:
         return self.exchange.get_open_orders()
 
     # ─── 清理資源 ────────────────────────────────────────────────
@@ -76,17 +76,17 @@ class RestExchangeClient:
     tests can mock HTTP without sockets.
     """
 
-    def __init__(self, base_url: str, api_key: str, account_id: Optional[str] = None, opener: Any = None):
+    def __init__(self, base_url: str, api_key: str, account_id: str | None = None, opener: Any = None):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.account_id = account_id
         self.opener = opener or urllib.request.build_opener()
 
     # ── HTTP helpers ─────────────────────────────────────────
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
-    def _request(self, method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, headers=self._headers(), method=method)
@@ -111,13 +111,13 @@ class RestExchangeClient:
             source="rest",
         )
 
-    def get_account_balance(self) -> Dict[str, Any]:
+    def get_account_balance(self) -> dict[str, Any]:
         resp = self._request("GET", f"/v3/accounts/{self.account_id}/summary")
         return resp.get("account") or resp
 
-    def get_positions(self) -> List[Position]:
+    def get_positions(self) -> list[Position]:
         resp = self._request("GET", f"/v3/accounts/{self.account_id}/positions")
-        out: List[Position] = []
+        out: list[Position] = []
         for p in resp.get("positions") or []:
             out.append(
                 Position(
@@ -167,7 +167,7 @@ class RestExchangeClient:
         except Exception:  # noqa: BLE001
             return False
 
-    def get_open_orders(self) -> List[Any]:
+    def get_open_orders(self) -> list[Any]:
         try:
             resp = self._request("GET", f"/v3/accounts/{self.account_id}/pendingOrders")
             return resp.get("orders") or []

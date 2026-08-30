@@ -3,9 +3,8 @@ Market Data Models
 統一的市場數據模型定義
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -38,15 +37,15 @@ class PriceData(BaseModel):
     source: str = Field(..., description="數據來源")
     
     # 可選字段
-    change: Optional[float] = Field(None, description="價格變動")
-    change_percent: Optional[float] = Field(None, description="變動百分比")
-    open: Optional[float] = Field(None, description="開盤價")
-    high: Optional[float] = Field(None, description="最高價")
-    low: Optional[float] = Field(None, description="最低價")
-    volume: Optional[float] = Field(None, description="成交量")
+    change: float | None = Field(None, description="價格變動")
+    change_percent: float | None = Field(None, description="變動百分比")
+    open: float | None = Field(None, description="開盤價")
+    high: float | None = Field(None, description="最高價")
+    low: float | None = Field(None, description="最低價")
+    volume: float | None = Field(None, description="成交量")
     
     class Config:
-        json_schema_extra = {
+        json_schema_extra = {  # noqa: RUF012
             "example": {
                 "symbol": "GC",
                 "price": 2034.50,
@@ -63,13 +62,13 @@ class HistoricalPriceData(BaseModel):
     """歷史價格數據模型"""
     symbol: str
     date: datetime
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    close: Optional[float] = None
-    volume: Optional[float] = None
-    adjusted_close: Optional[float] = None
-    source: Optional[str] = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+    adjusted_close: float | None = None
+    source: str | None = None
 
 
 class EconomicIndicator(BaseModel):
@@ -78,15 +77,15 @@ class EconomicIndicator(BaseModel):
     name: str = Field(..., description="指標名稱")
     value: float = Field(..., description="當前值")
     date: datetime = Field(..., description="數據日期")
-    unit: Optional[str] = Field(None, description="單位")
-    frequency: Optional[str] = Field(None, description="頻率 (D/W/M)")
+    unit: str | None = Field(None, description="單位")
+    frequency: str | None = Field(None, description="頻率 (D/W/M)")
     source: str = Field(default="fred")
 
 
 class MarketDataResponse(BaseModel):
     """市場數據響應模型"""
     success: bool
-    data: Optional[dict] = None
-    error: Optional[str] = None
-    source: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    data: dict | None = None
+    error: str | None = None
+    source: str | None = None
+    timestamp: datetime = Field(default_factory=datetime.now(timezone.utc))

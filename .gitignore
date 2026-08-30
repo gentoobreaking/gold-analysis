@@ -53,3 +53,6 @@ htmlcov/
 *.pyc
 temp/
 tmp/
+
+# runtime-generated digests (T065)
+backend/data/

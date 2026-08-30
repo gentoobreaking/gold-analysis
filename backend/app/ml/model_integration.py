@@ -5,14 +5,13 @@ Model Integration - ML 模型與決策系統整合
 
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 from .feature_engineering import FeatureEngineer
-from .model_trainer import ModelTrainer, ModelRegistry, TrainingResult, TrainingConfig
 from .model_evaluator import ModelEvaluator
+from .model_trainer import ModelTrainer, TrainingConfig, TrainingResult
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +19,11 @@ logger = logging.getLogger(__name__)
 class ModelAPI:
     """簡易的模型服務 API（HTTP/JSON）"""
 
-    def __init__(self, model_dir: Optional[str] = None):
+    def __init__(self, model_dir: str | None = None):
         self.trainer = ModelTrainer(model_dir=model_dir)
         self.evaluator = ModelEvaluator()
-        self.feature_engineer: Optional[FeatureEngineer] = None
-        self.current_model: Optional[Any] = None
+        self.feature_engineer: FeatureEngineer | None = None
+        self.current_model: Any | None = None
         self.model_name: str = "random_forest"
 
     # ─── 模型加載與初始化 ──────────────────────────────────────
@@ -38,7 +37,7 @@ class ModelAPI:
         logger.info(f"模型 {self.model_name} {result.version} 已載入")
 
     # ─── 預測入口 ───────────────────────────────────────────────
-    def predict(self, raw_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def predict(self, raw_data: list[dict[str, Any]]) -> dict[str, Any]:
         """接受原始市場/經濟數據，返回模型預測結果"""
         if not self.current_model:
             self.load_latest()
@@ -58,13 +57,13 @@ class ModelAPI:
         
         # 4. 包裝返回
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "predictions": preds.tolist(),
             "probabilities": probs.tolist(),
         }
 
     # ─── 重新訓練入口（持續優化）──────────────────────────────────
-    def retrain(self, data: List[Dict[str, Any]], label_key: str = "label") -> TrainingResult:
+    def retrain(self, data: list[dict[str, Any]], label_key: str = "label") -> TrainingResult:
         """接收新數據進行模型再訓練（增量或全量）"""
         import pandas as pd
         df = pd.DataFrame(data)
@@ -78,11 +77,11 @@ class ModelAPI:
         # 訓練配置（使用與第一次相同的模型類型）
         config = TrainingConfig(model_type=self.model_name)
         result = self.trainer.train(X_feat, y, config=config)
-        logger.info("模型重新訓練完成，版本 {}".format(result.version))
+        logger.info(f"模型重新訓練完成，版本 {result.version}")
         return result
 
     # ─── 評估入口 ───────────────────────────────────────────────
-    def evaluate(self, test_data: List[Dict[str, Any]], label_key: str = "label") -> Dict[str, Any]:
+    def evaluate(self, test_data: list[dict[str, Any]], label_key: str = "label") -> dict[str, Any]:
         """使用測試集評估模型並返回完整報告"""
         import pandas as pd
         df = pd.DataFrame(test_data)
@@ -122,13 +121,13 @@ class Decision:
     probability: float
     confidence: float
     suggested_position_pct: float
-    model_version: Optional[str]
-    model_type: Optional[str]
-    as_of: Optional[str] = None
-    top_features: List[Dict[str, Any]] = field(default_factory=list)
+    model_version: str | None
+    model_type: str | None
+    as_of: str | None = None
+    top_features: list[dict[str, Any]] = field(default_factory=list)
     notes: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action": self.action,
             "signal": self.signal,
@@ -146,11 +145,11 @@ class Decision:
 class DecisionEngine:
     """Integrate the latest ML model into an actionable decision (core API)."""
 
-    def __init__(self, trainer: Optional[ModelTrainer] = None, max_position_pct: float = 100.0):
+    def __init__(self, trainer: ModelTrainer | None = None, max_position_pct: float = 100.0):
         self.trainer = trainer
         self.max_position_pct = max_position_pct
 
-    def decide(self, prices: pd.DataFrame, trainer: Optional[ModelTrainer] = None) -> Decision:
+    def decide(self, prices: pd.DataFrame, trainer: ModelTrainer | None = None) -> Decision:
         trainer = trainer or self.trainer
         if trainer is None:
             return self._fallback("no trainer configured")
@@ -189,7 +188,7 @@ class DecisionEngine:
             return self._fallback(f"decision error: {exc}")
 
     @staticmethod
-    def _explain(model: Any, feat_names: List[str], top_n: int = 5) -> List[Dict[str, Any]]:
+    def _explain(model: Any, feat_names: list[str], top_n: int = 5) -> list[dict[str, Any]]:
         importances = getattr(model, "feature_importances_", None)
         if importances is None or not feat_names:
             return []

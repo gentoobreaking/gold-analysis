@@ -1,24 +1,22 @@
 """
 Authentication middleware and dependencies
 """
-from typing import Optional, Annotated
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from app.models.user import User
 from app.db.config import get_db_session
-
+from app.models.user import User
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # HTTP Bearer token scheme
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(bearer_scheme)] = None,
-    db: AsyncSession = Depends(get_db_session),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> User:
     """
     Get current authenticated user from JWT token.
@@ -65,7 +63,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # noqa: B008
 ) -> User:
     """
     Get current active user.
@@ -80,7 +78,7 @@ async def get_current_active_user(
 
 
 async def get_current_premium_user(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
 ) -> User:
     """
     Get current premium user.

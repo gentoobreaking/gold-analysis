@@ -1,6 +1,7 @@
 """
 T064 - 投資組合級風險單元測試（相關性矩陣 / 組合 VaR-CVaR / 因子曝險）
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,8 +22,8 @@ def test_correlation_matrix_properties():
     base = np.array(_series(200, 1))
     gold = list(base + np.random.default_rng(2).normal(0, 0.002, 200))
     dxy = list(-0.8 * base + np.random.default_rng(3).normal(0, 0.004, 200))  # 與 gold 負相關
-    btc = list(0.3 * base + np.random.default_rng(4).normal(0, 0.02, 200))   # 與 gold 弱正相關
-    spx = list(np.random.default_rng(5).normal(0, 0.01, 200))               # 近似無關
+    btc = list(0.3 * base + np.random.default_rng(4).normal(0, 0.02, 200))  # 與 gold 弱正相關
+    spx = list(np.random.default_rng(5).normal(0, 0.01, 200))  # 近似無關
 
     returns = {"GOLD": gold, "DXY": dxy, "BTC": btc, "SPX": spx}
     res = correlation_matrix(returns)
@@ -61,8 +62,8 @@ def test_correlation_matrix_handles_short_overlap():
 def test_portfolio_var_considers_correlation_not_simple_sum():
     # 兩資產等權重；當完全正相關時組合波動≈單資產，當負相關時更小
     x = np.array(_series(300, 11))
-    y_pos = list(x)                                   # 完全相關
-    y_neg = list(-x)                                  # 完全負相關
+    y_pos = list(x)  # 完全相關
+    y_neg = list(-x)  # 完全負相關
     cov_pos = np.cov(np.column_stack([x, x]), rowvar=False, ddof=1)
     cov_neg = np.cov(np.column_stack([x, -x]), rowvar=False, ddof=1)
 

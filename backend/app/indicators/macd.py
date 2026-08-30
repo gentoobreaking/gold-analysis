@@ -11,9 +11,9 @@ MACD 模組 (Moving Average Convergence Divergence)
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -71,7 +71,7 @@ class MACD:
         self.slow_period = slow_period
         self.signal_period = signal_period
 
-    def compute(self, data: Sequence[float]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def compute(self, data: Sequence[float]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         計算 MACD
 
@@ -130,7 +130,7 @@ def compute_macd(
     fast_period: int = DEFAULT_FAST,
     slow_period: int = DEFAULT_SLOW,
     signal_period: int = DEFAULT_SIGNAL,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """快捷函數：計算 MACD"""
     return MACD(fast_period, slow_period, signal_period).compute(data)
 
@@ -140,7 +140,7 @@ def compute_macd(
 def determine_macd_trend(
     macd_line: Sequence[float],
     signal_line: Sequence[float],
-    histogram: Optional[Sequence[float]] = None,
+    histogram: Sequence[float] | None = None,
     lookback: int = 5,
 ) -> MACDTrend:
     """
@@ -176,15 +176,13 @@ def determine_macd_trend(
 
     if current_diff > 0:
         # MACD > 信號線，看多
-        if len(hist_v) >= 2:
-            if hist_v[-1] < hist_v[-2]:
-                return MACDTrend.WEAKENING_BULL
+        if len(hist_v) >= 2 and hist_v[-1] < hist_v[-2]:
+            return MACDTrend.WEAKENING_BULL
         return MACDTrend.BULLISH
     elif current_diff < 0:
         # MACD < 信號線，看空
-        if len(hist_v) >= 2:
-            if hist_v[-1] > hist_v[-2]:
-                return MACDTrend.STRENGTHENING_BEAR
+        if len(hist_v) >= 2 and hist_v[-1] > hist_v[-2]:
+            return MACDTrend.STRENGTHENING_BEAR
         return MACDTrend.BEARISH
     else:
         return MACDTrend.NEUTRAL
@@ -193,7 +191,7 @@ def determine_macd_trend(
 def detect_macd_cross(
     macd_line: Sequence[float],
     signal_line: Sequence[float],
-) -> List[MACDCrossSignal]:
+) -> list[MACDCrossSignal]:
     """
     檢測 MACD 金叉/死叉
 

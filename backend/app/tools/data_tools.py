@@ -4,55 +4,53 @@
 提供實時和歷史市場數據獲取能力。
 """
 
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
 import logging
-import json
-import urllib.request
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
-
-
 class DataTools:
     """
     數據獲取工具集
-    
+
     提供黃金價格、市場數據、宏觀經濟數據等獲取接口。
-    
+
     這些方法可作為 OpenClaw Tool 裝飾器的基礎實現。
     """
-    
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         初始化數據工具
-        
+
         Args:
             config: 配置字典（如 API 密鑰、數據源等）
         """
         self.config = config or {}
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
         self._cache_ttl = self.config.get("cache_ttl", 300)  # 默認 5 分鐘
-        
+
         logger.info("DataTools initialized")
-    
-    async def get_gold_price(self, date: str, source: str = "auto") -> Dict[str, Any]:
+
+    async def get_gold_price(self, date: str, source: str = "auto") -> dict[str, Any]:
         """
         獲取指定日期的黃金價格
-        
+
         Args:
             date: 日期字符串 (YYYY-MM-DD)
             source: 數據源 (auto/metalvaluekit/goldapi)
-            
+
         Returns:
             包含 price, change, percent_change 等字段的字典
         """
         logger.info(f"Fetching gold price for {date} from {source}")
-        
+
         cache_key = f"gold_price_{date}_{source}"
         if cache_key in self._cache:
             logger.debug(f"Cache hit for {cache_key}")
             return self._cache[cache_key]
-        
+
         # TODO: 實現實際的 API 調用
         # 這裡返回模擬數據
         result = {
@@ -65,141 +63,160 @@ class DataTools:
             "open": 2033.20,
             "high": 2050.00,
             "low": 2030.50,
-            "volume": 185000
+            "volume": 185000,
         }
-        
+
         self._cache[cache_key] = result
         return result
-    
-    async def get_market_data(self, symbol: str, period: str = "1d") -> Dict[str, Any]:
+
+    async def get_market_data(self, symbol: str, period: str = "1d") -> dict[str, Any]:
         """
         獲取市場數據
-        
+
         Args:
             symbol: 標識符 (如 XAUUSD, GC=F)
             period: 時間週期 (1m/5m/1h/1d/1w)
-            
+
         Returns:
             OHLCV 數據
         """
         logger.info(f"Fetching market data for {symbol}, period={period}")
-        
+
         # TODO: 實現實際的 API 調用
         # 這裡返回模擬數據
         return {
             "symbol": symbol,
             "period": period,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": [
-                {"time": "2024-01-15", "open": 2030, "high": 2050, "low": 2025, "close": 2045, "volume": 185000},
-                {"time": "2024-01-16", "open": 2045, "high": 2060, "low": 2040, "close": 2055, "volume": 210000},
-                {"time": "2024-01-17", "open": 2055, "high": 2070, "low": 2050, "close": 2065, "volume": 195000},
-            ]
+                {
+                    "time": "2024-01-15",
+                    "open": 2030,
+                    "high": 2050,
+                    "low": 2025,
+                    "close": 2045,
+                    "volume": 185000,
+                },
+                {
+                    "time": "2024-01-16",
+                    "open": 2045,
+                    "high": 2060,
+                    "low": 2040,
+                    "close": 2055,
+                    "volume": 210000,
+                },
+                {
+                    "time": "2024-01-17",
+                    "open": 2055,
+                    "high": 2070,
+                    "low": 2050,
+                    "close": 2065,
+                    "volume": 195000,
+                },
+            ],
         }
-    
+
     async def get_historical_prices(
-        self,
-        symbol: str,
-        start_date: str,
-        end_date: str,
-        interval: str = "1d"
-    ) -> List[Dict[str, Any]]:
+        self, symbol: str, start_date: str, end_date: str, interval: str = "1d"
+    ) -> list[dict[str, Any]]:
         """
         獲取歷史價格數據
-        
+
         Args:
             symbol: 標識符
             start_date: 開始日期 (YYYY-MM-DD)
             end_date: 結束日期 (YYYY-MM-DD)
             interval: 數據間隔 (1d/1w/1M)
-            
+
         Returns:
             歷史價格列表
         """
         logger.info(f"Fetching historical prices for {symbol} from {start_date} to {end_date}")
-        
+
         # 解析日期
-        start = datetime.strptime(start_date, "%Y-%m-%d")
-        end = datetime.strptime(end_date, "%Y-%m-%d")
-        
+        start = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        end = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+
         # 生成模擬數據
         data = []
         current = start
         price = 2030.0
-        
+
         while current <= end:
             price += (hash(str(current.date())) % 100 - 50) / 10
-            data.append({
-                "date": current.strftime("%Y-%m-%d"),
-                "open": round(price - 5, 2),
-                "high": round(price + 10, 2),
-                "low": round(price - 10, 2),
-                "close": round(price, 2),
-                "volume": 150000 + (hash(str(current.date())) % 100000)
-            })
+            data.append(
+                {
+                    "date": current.strftime("%Y-%m-%d"),
+                    "open": round(price - 5, 2),
+                    "high": round(price + 10, 2),
+                    "low": round(price - 10, 2),
+                    "close": round(price, 2),
+                    "volume": 150000 + (hash(str(current.date())) % 100000),
+                }
+            )
             current += timedelta(days=1)
-        
+
         return data
-    
-    async def get_macro_indicators(self, region: str = "US") -> Dict[str, Any]:
+
+    async def get_macro_indicators(self, region: str = "US") -> dict[str, Any]:
         """
         獲取宏觀經濟指標
-        
+
         Args:
             region: 地區代碼 (US/EU/CN/JP)
-            
+
         Returns:
             宏觀經濟指標數據
         """
         logger.info(f"Fetching macro indicators for region={region}")
-        
+
         # TODO: 實現實際的 API 調用
         return {
             "region": region,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "indicators": {
                 "cpi": {"value": 3.4, "period": "2024-01", "change": 0.3},
                 "ppi": {"value": 1.8, "period": "2024-01", "change": -0.2},
                 "unemployment": {"value": 3.7, "period": "2024-01", "change": -0.1},
                 "gdp": {"value": 2.5, "period": "Q4 2023", "change": 0.3},
-                "interest_rate": {"value": 5.25, "period": "2024-02", "change": 0}
-            }
+                "interest_rate": {"value": 5.25, "period": "2024-02", "change": 0},
+            },
         }
-    
-    async def get_usd_index(self) -> Dict[str, Any]:
+
+    async def get_usd_index(self) -> dict[str, Any]:
         """獲取美元指數"""
         logger.info("Fetching USD Index")
-        
+
         return {
             "symbol": "DXY",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "value": 104.25,
             "change": 0.15,
-            "percent_change": 0.14
+            "percent_change": 0.14,
         }
-    
-    async def get_interest_rates(self) -> Dict[str, Any]:
+
+    async def get_interest_rates(self) -> dict[str, Any]:
         """獲取主要經濟體利率"""
         logger.info("Fetching interest rates")
-        
+
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "rates": {
                 "US": {"federal_fund": 5.25, "discount": 5.50},
                 "EU": {"deposit_facility": 4.50, "refinancing": 4.50},
                 "JP": {"policy_rate": -0.10},
-                "CN": {"lpr_1y": 3.45, "lpr_5y": 3.95}
-            }
+                "CN": {"lpr_1y": 3.45, "lpr_5y": 3.95},
+            },
         }
-    
-    async def get_sentiment_data(self) -> Dict[str, Any]:
+
+    async def get_sentiment_data(self) -> dict[str, Any]:
         """獲取市場情緒數據（真實來源；失敗時標示 unavailable，不再回傳假值）"""
         logger.info("Fetching sentiment data")
 
         # 測試/離線保留的 mock 模式（預設關閉，不回傳假情緒）
         if self.config.get("mock_sentiment"):
             return {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "available": True,
                 "source": "mock",
                 "gold": {
@@ -212,16 +229,16 @@ class DataTools:
             }
 
         try:
-            url = "https://api.alternative.me/fng/?limit=1"
-            req = urllib.request.Request(url, headers={"User-Agent": "gold-analysis/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
-            entry = (payload.get("data") or [{}])[0]
-            value = int(entry.get("value", 0))
-            classification = entry.get("value_classification", "")
-            sentiment = "Greed" if value >= 55 else ("Fear" if value <= 45 else "Neutral")
-            return {
-                "timestamp": datetime.utcnow().isoformat(),
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get("https://api.alternative.me/fng/?limit=1")
+                resp.raise_for_status()
+                payload = resp.json()
+                entry = (payload.get("data") or [{}])[0]
+                value = int(entry.get("value", 0))
+                classification = entry.get("value_classification", "")
+                sentiment = "Greed" if value >= 55 else ("Fear" if value <= 45 else "Neutral")
+                return {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "available": True,
                 "source": "alternative.me",
                 "gold": {
@@ -236,16 +253,16 @@ class DataTools:
         except Exception as e:  # noqa: BLE001
             logger.warning("Sentiment fetch failed, marking unavailable: %s", e)
             return {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "available": False,
                 "reason": str(e),
                 "gold": {"sentiment": None, "fear_greed_index": None},
             }
-    
+
     def clear_cache(self) -> None:
         """清除緩存"""
         self._cache.clear()
         logger.debug("Cache cleared")
-    
+
     def __repr__(self) -> str:
         return f"<DataTools(cache_size={len(self._cache)})>"

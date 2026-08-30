@@ -1,9 +1,10 @@
 """
 InfluxDB client wrapper for market data
 """
-from influxdb_client import InfluxDBClient, Point, WriteOptions
+from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
-from .config import settings, get_influx_client, init_influxdb
+
+from .config import get_influx_client, settings
 
 
 def get_write_api(client: InfluxDBClient):

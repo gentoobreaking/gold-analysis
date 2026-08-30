@@ -22,28 +22,30 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Any, ClassVar
 
 import requests
 from requests.exceptions import RequestException
 
 from .exchange_interface import (
     ExchangeInterface,
-    MarketData as ExchangeMarketData,
     OrderRequest,
     OrderResponse,
 )
+from .exchange_interface import (
+    MarketData as ExchangeMarketData,
+)
 from .order_types import (
+    AccountBalance,
     Order,
     OrderSide,
     OrderStatus,
     OrderType,
     Position,
     PositionSide,
-    AccountBalance,
-    Trade,
     TimeInForce,
+    Trade,
 )
 from .risk_rules import RiskRuleConfig
 
@@ -145,15 +147,15 @@ class AlpacaExchange(ExchangeInterface):
         market  = adapter.get_market_data("GOLD")
     """
 
-    exchange_name = "ALPACA"
-    supported_order_types = [
+    exchange_name: ClassVar[str] = "ALPACA"
+    supported_order_types: ClassVar[list[OrderType]] = [
         OrderType.MARKET,
         OrderType.LIMIT,
         OrderType.STOP,
         OrderType.STOP_LIMIT,
     ]
     # Alpaca 支援的標的（需帳號有權限）
-    supported_symbols = list(ALPACA_SYMBOLS.keys())
+    supported_symbols: ClassVar[list[str]] = list(ALPACA_SYMBOLS.keys())
 
     # API 端點
     BASE_URL_PAPER  = "https://paper-api.alpaca.markets"
@@ -165,11 +167,11 @@ class AlpacaExchange(ExchangeInterface):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
+        api_key: str | None = None,
+        api_secret: str | None = None,
         is_demo: bool = True,
-        base_url: Optional[str] = None,
-        risk_config: Optional[RiskRuleConfig] = None,
+        base_url: str | None = None,
+        risk_config: RiskRuleConfig | None = None,
         timeout: int = 15,
     ):
         """
@@ -204,14 +206,14 @@ class AlpacaExchange(ExchangeInterface):
         self.logger = logging.getLogger(f"{__name__}.AlpacaExchange")
 
         # 本地訂單簿（快取 Alpaca 的訂單狀態，減少 API 調用）
-        self._orders:     Dict[str, Order]  = {}
-        self._positions:  Dict[str, Position] = {}
-        self._account:    Optional[AccountBalance] = None
+        self._orders:     dict[str, Order]  = {}
+        self._positions:  dict[str, Position] = {}
+        self._account:    AccountBalance | None = None
 
     # ─── 工廠方法 ───────────────────────────────────────────────────────────
 
     @classmethod
-    def from_env(cls, risk_config: Optional[RiskRuleConfig] = None) -> "AlpacaExchange":
+    def from_env(cls, risk_config: RiskRuleConfig | None = None) -> AlpacaExchange:
         """
         從環境變數建立實例
 
@@ -266,13 +268,13 @@ class AlpacaExchange(ExchangeInterface):
 
     # ─── 私有 HTTP 工具 ─────────────────────────────────────────────────────
 
-    def _get(self, path: str, params: Optional[Dict] = None) -> requests.Response:
+    def _get(self, path: str, params: dict | None = None) -> requests.Response:
         url = f"{self.base_url}/{self.HEADER_APCA_API_VERSION}{path}"
         resp = self._session.get(url, params=params, timeout=self.timeout)
         resp.raise_for_status()
         return resp
 
-    def _post(self, path: str, json: Optional[Dict] = None) -> requests.Response:
+    def _post(self, path: str, json: dict | None = None) -> requests.Response:
         url = f"{self.base_url}/{self.HEADER_APCA_API_VERSION}{path}"
         resp = self._session.post(url, json=json, timeout=self.timeout)
         resp.raise_for_status()
@@ -285,7 +287,7 @@ class AlpacaExchange(ExchangeInterface):
         return resp
 
     def _request(self, method: str, path: str,
-                 json: Optional[Dict] = None) -> requests.Response:
+                 json: dict | None = None) -> requests.Response:
         """通用 HTTP 請求（自動處理 429 Retry-After）"""
         url = f"{self.base_url}/{self.HEADER_APCA_API_VERSION}{path}"
         for attempt in range(3):
@@ -324,7 +326,7 @@ class AlpacaExchange(ExchangeInterface):
         )
         return self._account
 
-    def get_positions(self) -> List[Position]:
+    def get_positions(self) -> list[Position]:
         """
         獲取所有持倉
 
@@ -332,10 +334,10 @@ class AlpacaExchange(ExchangeInterface):
         Doc: https://docs.alpaca.markets/reference/getpositions
         """
         resp = self._get("/positions")
-        raw_positions: List[Dict] = resp.json()
+        raw_positions: list[dict] = resp.json()
 
         self._positions.clear()
-        positions: List[Position] = []
+        positions: list[Position] = []
 
         for p in raw_positions:
             symbol = from_alpaca_symbol(p["symbol"])
@@ -355,7 +357,7 @@ class AlpacaExchange(ExchangeInterface):
 
         return positions
 
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """
         獲取指定標的持倉
 
@@ -456,7 +458,7 @@ class AlpacaExchange(ExchangeInterface):
         start: datetime,
         end: datetime,
         timeframe: str = "1Day",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         獲取歷史 K 線
 
@@ -520,7 +522,7 @@ class AlpacaExchange(ExchangeInterface):
             )
 
         # ── 2. 風控檢查 ─────────────────────────────────────────────────────
-        market = self.get_market_data(request.symbol)
+        self.get_market_data(request.symbol)
         passed, results = self._apply_risk_check(request)
         if not passed:
             blocked = [r for r in results if r.is_blocked]
@@ -532,7 +534,7 @@ class AlpacaExchange(ExchangeInterface):
             )
 
         # ── 3. 構造 Alpaca API 請求 body ────────────────────────────────────
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "symbol":        alpaca_sym,
             "side":          request.side.value,
             "type":          request.order_type.value,
@@ -555,7 +557,7 @@ class AlpacaExchange(ExchangeInterface):
         # ── 4. 發送至 Alpaca ─────────────────────────────────────────────────
         try:
             resp = self._post("/orders", json=body)
-            raw_order: Dict = resp.json()
+            raw_order: dict = resp.json()
 
             # ── 5. 包裝為內部 Order 物件 ──────────────────────────────────────
             order = Order(
@@ -612,7 +614,7 @@ class AlpacaExchange(ExchangeInterface):
             self.logger.warning(f"[Alpaca] 取消訂單失敗 {order_id}: {e}")
             return False
 
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """
         查詢訂單狀態
 
@@ -633,7 +635,7 @@ class AlpacaExchange(ExchangeInterface):
         except RequestException:
             return self._orders.get(order_id)
 
-    def get_open_orders(self) -> List[Order]:
+    def get_open_orders(self) -> list[Order]:
         """
         獲取所有未完成訂單
 
@@ -641,8 +643,8 @@ class AlpacaExchange(ExchangeInterface):
         """
         try:
             resp = self._get("/orders", params={"status": "open", "limit": 100})
-            raw_orders: List[Dict] = resp.json()
-            orders: List[Order] = []
+            raw_orders: list[dict] = resp.json()
+            orders: list[Order] = []
             for raw in raw_orders:
                 order = self._raw_to_order(raw)
                 self._orders[order.order_id] = order
@@ -654,7 +656,7 @@ class AlpacaExchange(ExchangeInterface):
 
     # ─── 私有工具 ───────────────────────────────────────────────────────────
 
-    def _raw_to_order(self, raw: Dict) -> Order:
+    def _raw_to_order(self, raw: dict) -> Order:
         """將 Alpaca API 回應轉換為內部 Order 物件"""
         return Order(
             order_id=raw["id"],
@@ -675,7 +677,7 @@ class AlpacaExchange(ExchangeInterface):
             exchange=self.exchange_name,
         )
 
-    def get_trades(self) -> List[Trade]:
+    def get_trades(self) -> list[Trade]:
         """
         獲取帳戶所有成交記錄（最近 100 筆）
 
@@ -686,8 +688,8 @@ class AlpacaExchange(ExchangeInterface):
                 "/account/activities",
                 params={"activity_type": "FILL", "limit": 100},
             )
-            activities: List[Dict] = resp.json()
-            trades: List[Trade] = []
+            activities: list[dict] = resp.json()
+            trades: list[Trade] = []
             for act in activities:
                 trades.append(Trade(
                     trade_id=act.get("id", ""),
@@ -711,19 +713,19 @@ class AlpacaExchange(ExchangeInterface):
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
 
-def _parse_alpaca_time(raw: Optional[str]) -> datetime:
+def _parse_alpaca_time(raw: str | None) -> datetime:
     """解析 Alpaca API 回應的 ISO 8601 時間字串"""
     if not raw:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
     # Alpaca 有兩種格式: "2024-01-02T15:00:00Z" 或 "2024-01-02T15:00:00.123456789Z"
     raw = raw.replace("Z", "+00:00")
     try:
         return datetime.fromisoformat(raw)
     except ValueError:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
 
-def _parse_alpaca_error(exc: RequestException) -> Dict[str, str]:
+def _parse_alpaca_error(exc: RequestException) -> dict[str, str]:
     """從 HTTP 例外中解析 Alpaca API 錯誤訊息"""
     try:
         body = exc.response.json()

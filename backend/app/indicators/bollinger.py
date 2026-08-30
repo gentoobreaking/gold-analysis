@@ -11,8 +11,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -63,7 +63,7 @@ class BollingerBands:
     def compute(
         self,
         data: Sequence[float],
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         計算布林帶
 
@@ -105,7 +105,7 @@ def compute_bollinger(
     data: Sequence[float],
     period: int = DEFAULT_PERIOD,
     std_mult: float = DEFAULT_STD_MULT,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """快捷函數：計算布林帶"""
     return BollingerBands(period, std_mult).compute(data)
 
@@ -116,7 +116,7 @@ def detect_bollinger_squeeze(
     bandwidth: Sequence[float],
     threshold: float = SQUEEZE_RATIO,
     min_duration: int = 3,
-) -> List[BollingerSqueeze]:
+) -> list[BollingerSqueeze]:
     """
     檢測布林帶收窄（Squeeze）
 

@@ -3,11 +3,12 @@ Data Quality Report - 數據品質報告生成器
 生成數據品質評估報告
 """
 
-import logging
 import json
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, asdict
-from datetime import datetime
+import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from typing import Any
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -30,19 +31,18 @@ class DataQualityReport:
     """數據品質報告生成器"""
     
     def __init__(self):
-        self.timestamp: Optional[str] = None
-        self.metrics: Optional[QualityMetrics] = None
+        self.timestamp: str | None = None
+        self.metrics: QualityMetrics | None = None
     
     def generate(
         self,
-        original_data: List[Dict],
-        cleaned_data: List[Dict],
-        validation_stats: Dict[str, Any],
-        cleaning_stats: Dict[str, Any]
+        original_data: list[dict],
+        cleaned_data: list[dict],
+        validation_stats: dict[str, Any],
+        cleaning_stats: dict[str, Any]
     ) -> QualityMetrics:
         """生成品質報告"""
-        self.timestamp = datetime.now().isoformat()
-        
+        self.timestamp = datetime.now(timezone.utc).isoformat()
         total = len(original_data)
         valid = validation_stats.get('valid_count', 0)
         missing = cleaning_stats.get('missing_fixed', 0)
@@ -100,7 +100,7 @@ class DataQualityReport:
             return 'D'
         return 'F'
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
             'timestamp': self.timestamp,
@@ -113,9 +113,9 @@ class DataQualityReport:
     
     def generate_report(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成數據品質報告
         
@@ -134,7 +134,7 @@ class DataQualityReport:
         """
         if not data:
             return {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": "No data provided",
                 "completeness_score": 0
             }
@@ -166,7 +166,7 @@ class DataQualityReport:
         distribution = self._analyze_distribution(data, value_field)
         
         report = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "summary": {
                 "total_records": total_records,
                 "completeness_score": completeness_score,
@@ -185,9 +185,9 @@ class DataQualityReport:
     
     def _analyze_missing(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """分析缺失值"""
         total = len(data)
         missing_count = sum(1 for item in data if item.get(value_field) is None)
@@ -213,9 +213,9 @@ class DataQualityReport:
     
     def _analyze_outliers(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """分析異常值"""
         # 提取有效值
         valid_values = [item[value_field] for item in data if item.get(value_field) is not None]
@@ -265,14 +265,14 @@ class DataQualityReport:
     
     def _analyze_duplicates(
         self,
-        data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """分析重複值"""
         total = len(data)
         
         # 檢查 timestamp 重複
         timestamps = [item.get("timestamp") for item in data]
-        unique_timestamps = set(str(ts) for ts in timestamps if ts is not None)
+        unique_timestamps = {str(ts) for ts in timestamps if ts is not None}
         
         duplicate_count = total - len(unique_timestamps)
         
@@ -285,8 +285,8 @@ class DataQualityReport:
     
     def _analyze_continuity(
         self,
-        data: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """分析時間連續性"""
         # 提取有時間戳的記錄
         dated_items = [
@@ -331,9 +331,9 @@ class DataQualityReport:
     
     def _analyze_distribution(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """分析數值分佈"""
         valid_values = [item[value_field] for item in data if item.get(value_field) is not None]
         
@@ -394,7 +394,7 @@ class DataQualityReport:
     
     def generate_summary(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price"
     ) -> str:
         """
@@ -417,11 +417,11 @@ class DataQualityReport:
         outliers = report["outliers"]
         
         lines = [
-            f"📊 數據品質報告",
-            f"=" * 30,
+            "📊 數據品質報告",
+            "=" * 30,
             f"總記錄數: {summary['total_records']}",
             f"完整性評分: {summary['completeness_score']:.1f}% (Grade: {summary['quality_grade']})",
-            f"",
+            "",
             f"缺失值: {missing['missing_count']} ({missing['missing_rate']}%)",
             f"異常值: {outliers['outlier_count']} ({outliers['outlier_rate']}%)",
         ]
@@ -429,8 +429,8 @@ class DataQualityReport:
         if "distribution" in report and "mean" in report["distribution"]:
             dist = report["distribution"]
             lines.extend([
-                f"",
-                f"數值分佈:",
+                "",
+                "數值分佈:",
                 f"  均值: {dist['mean']:.2f}",
                 f"  中位數: {dist['median']:.2f}",
                 f"  範圍: {dist['min']:.2f} - {dist['max']:.2f}",
@@ -440,7 +440,7 @@ class DataQualityReport:
 
 
 # 預設實例
-_default_report: Optional[DataQualityReport] = None
+_default_report: DataQualityReport | None = None
 
 
 def get_data_quality_report() -> DataQualityReport:

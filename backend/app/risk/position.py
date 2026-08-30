@@ -7,9 +7,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Sequence
 
 import numpy as np
 
@@ -41,7 +41,7 @@ class StopLossResult:
     """止損結果"""
     stop_price: float
     strategy: StopLossStrategy
-    atr_or_volatility: Optional[float]
+    atr_or_volatility: float | None
     risk_amount: float
     risk_pct: float
 
@@ -84,13 +84,13 @@ def calculate_stop_loss(
     entry_price: float,
     position_type: str,          # "long" 或 "short"
     closes: Sequence[float],
-    highs: Optional[Sequence[float]] = None,
-    lows: Optional[Sequence[float]] = None,
+    highs: Sequence[float] | None = None,
+    lows: Sequence[float] | None = None,
     atr_period: int = 14,
     atr_multiplier: float = 2.0,
     volatility_mult: float = 2.0,
-    var_value: Optional[float] = None,
-    support_level: Optional[float] = None,
+    var_value: float | None = None,
+    support_level: float | None = None,
     fixed_pct: float = 0.02,
     trailing_pct: float = 0.015,
 ) -> StopLossResult:
@@ -132,18 +132,18 @@ def calculate_stop_loss(
 
     # 固定比例止損
     if position_type == "long":
-        fixed_stop = entry_price * (1 - fixed_pct)
+        entry_price * (1 - fixed_pct)
     else:
-        fixed_stop = entry_price * (1 + fixed_pct)
+        entry_price * (1 + fixed_pct)
 
     # 默認用波動率止損
     final_stop = atr_stop
 
-    if support_level is not None:
-        if position_type == "long" and support_level < atr_stop:
-            final_stop = support_level
-        elif position_type == "short" and support_level > atr_stop:
-            final_stop = support_level
+    if support_level is not None and (
+        (position_type == "long" and support_level < atr_stop)
+        or (position_type == "short" and support_level > atr_stop)
+    ):
+        final_stop = support_level
 
     if var_value is not None:
         var_stop = entry_price * (1 - var_value / 100)

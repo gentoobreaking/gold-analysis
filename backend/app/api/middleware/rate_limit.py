@@ -1,17 +1,13 @@
 """
 Rate limiting middleware for API endpoints
 """
-import time
-from typing import Optional
-
-from fastapi import Request, HTTPException, Depends
-from fastapi.responses import JSONResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
-
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 # Create limiter instance
 limiter = Limiter(
@@ -27,11 +23,10 @@ async def rate_limit_dependency(request: Request) -> None:
     Raises 429 Too Many Requests if limit exceeded.
     """
     # Get client identifier (IP address or user ID if authenticated)
-    client_ip = get_remote_address(request)
+    get_remote_address(request)
     
     # Check rate limit manually for custom limits
     # This is a simplified version; in production use @limiter.limit decorator
-    pass
 
 
 def rate_limit_callback(request: Request, exc: RateLimitExceeded) -> JSONResponse:

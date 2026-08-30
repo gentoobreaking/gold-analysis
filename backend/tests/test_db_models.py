@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker
 # same schema for unit tests.
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
+
 @pytest.fixture(scope="module")
 async def async_engine():
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
@@ -28,14 +29,14 @@ async def async_engine():
     yield engine
     await engine.dispose()
 
+
 @pytest.fixture(scope="function")
 async def async_session(async_engine) -> AsyncSession:
-    async_session_factory = sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_factory = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session_factory() as session:
         yield session
         await session.rollback()
+
 
 @pytest.mark.asyncio
 async def test_create_user(async_session: AsyncSession):
@@ -47,6 +48,7 @@ async def test_create_user(async_session: AsyncSession):
     async_session.add(user)
     await async_session.commit()
     assert user.id is not None
+
 
 @pytest.mark.asyncio
 async def test_portfolio_relationship(async_session: AsyncSession):
@@ -62,6 +64,7 @@ async def test_portfolio_relationship(async_session: AsyncSession):
     # Verify relationship back to user
     await async_session.refresh(portfolio)
     assert portfolio.user.id == user.id
+
 
 @pytest.mark.asyncio
 async def test_holding_and_decision(async_session: AsyncSession):
@@ -98,6 +101,7 @@ async def test_holding_and_decision(async_session: AsyncSession):
     assert decision.user.id == user.id
     assert decision.portfolio.id == portfolio.id
 
+
 @pytest.mark.asyncio
 async def test_alert_model(async_session: AsyncSession):
     user = User(username="alert_user", email="alert@example.com", hashed_password="pwd")
@@ -115,6 +119,7 @@ async def test_alert_model(async_session: AsyncSession):
     assert alert.id is not None
     await async_session.refresh(alert)
     assert alert.user.id == user.id
+
 
 def test_settings_load():
     # Ensure Settings can load defaults from .env.example without error

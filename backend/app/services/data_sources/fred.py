@@ -4,20 +4,17 @@ FRED (Federal Reserve Economic Data) API Adapter
 文檔: https://fred.stlouisfed.org/docs/api/fred/
 """
 
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import ClassVar
 
-import httpx
-
-from .base import BaseDataSource, HistoricalData, MarketData
 from ..config import get_api_key, get_api_settings
+from .base import BaseDataSource, HistoricalData, MarketData
 
 
 class FREDAdapter(BaseDataSource):
     """FRED 數據源適配器"""
-    
     # 常用 FRED series ID
-    SERIES_MAP = {
+    SERIES_MAP: ClassVar[dict[str, str]] = {
         # 利率
         "FEDFUNDS": "Federal Funds Rate (Effective)",
         "DFF": "Federal Funds Rate (Daily)",
@@ -26,26 +23,22 @@ class FREDAdapter(BaseDataSource):
         "DGS10": "10-Year Treasury Rate",
         "DGS30": "30-Year Treasury Rate",
         "TEDRATE": "TED Spread",
-        
         # 通脹
         "CPIAUCSL": "CPI (All Urban Consumers)",
         "CPILFESL": "Core CPI (Less Food & Energy)",
         "PCEPI": "PCE Price Index",
         "PCECTPI": "Core PCE Price Index",
-        
         # 黃金相關
         "GOLDAMGBD228NLBM": "Gold Fixing Price (London)",
         "GOLDPMGBD228NLBM": "Gold Fixing Price (PM, London)",
-        
         # 美元指數
         "DTWEXBGS": "Trade Weighted USD Index (Broad)",
         "DTWEXM": "Trade Weighted USD Index (Major)",
-        
         # 實際利率
         "REAINTRATREARAT10Y": "Real 10-Year Treasury Rate",
     }
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         settings = get_api_settings()
         super().__init__(
             api_key=api_key or get_api_key("fred"),
@@ -101,7 +94,7 @@ class FREDAdapter(BaseDataSource):
         return MarketData(
             symbol=series_id,
             value=float(value_str),
-            timestamp=datetime.strptime(date_str, "%Y-%m-%d"),
+            timestamp=datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc),
             currency="USD",
             source=self.name,
             metadata={
@@ -149,7 +142,7 @@ class FREDAdapter(BaseDataSource):
                 results.append(
                     HistoricalData(
                         symbol=series_id,
-                        date=datetime.strptime(obs["date"], "%Y-%m-%d"),
+                        date=datetime.strptime(obs["date"], "%Y-%m-%d").replace(tzinfo=timezone.utc),
                         close=float(value_str),
                         source=self.name,
                     )

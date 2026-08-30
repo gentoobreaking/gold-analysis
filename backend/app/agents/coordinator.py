@@ -7,11 +7,11 @@ Agent 協作管理器 - 協調多個專業 Agent 完成完整分析流程
 3. 結果彙總和傳遞
 """
 
-from typing import Dict, List, Optional, Any, Callable
-from enum import Enum
 import logging
-import asyncio
-from datetime import datetime
+from collections.abc import Callable
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
 
 from .base import GoldAnalysisAgent
 
@@ -67,9 +67,9 @@ class AgentCoordinator:
     
     def __init__(self):
         """初始化協調器"""
-        self.agents: Dict[str, GoldAnalysisAgent] = {}
-        self._execution_history: List[Dict[str, Any]] = []
-        self._middleware: List[Callable] = []
+        self.agents: dict[str, GoldAnalysisAgent] = {}
+        self._execution_history: list[dict[str, Any]] = []
+        self._middleware: list[Callable] = []
         
         logger.info("AgentCoordinator initialized")
     
@@ -105,11 +105,11 @@ class AgentCoordinator:
             return True
         return False
     
-    def get_agent(self, name: str) -> Optional[GoldAnalysisAgent]:
+    def get_agent(self, name: str) -> GoldAnalysisAgent | None:
         """根據名稱獲取 Agent"""
         return self.agents.get(name)
     
-    def get_agents_by_role(self, role: str) -> List[GoldAnalysisAgent]:
+    def get_agents_by_role(self, role: str) -> list[GoldAnalysisAgent]:
         """根據角色獲取所有匹配的 Agent"""
         return [agent for agent in self.agents.values() if agent.role == role]
     
@@ -126,8 +126,8 @@ class AgentCoordinator:
     async def _run_middleware(
         self, 
         stage: PipelineStage, 
-        context: Dict[str, Any], 
-        result: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any], 
+        result: dict[str, Any] | None = None,
         is_pre: bool = True
     ) -> None:
         """執行所有中間件"""
@@ -143,9 +143,9 @@ class AgentCoordinator:
     async def run_stage(
         self, 
         stage: PipelineStage, 
-        input_data: Dict[str, Any],
-        agent_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+        input_data: dict[str, Any],
+        agent_name: str | None = None
+    ) -> dict[str, Any]:
         """
         執行指定階段
         
@@ -186,15 +186,15 @@ class AgentCoordinator:
             "stage": stage.value,
             "agent": agent.name,
             "result": final_result,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     
     async def run_pipeline(
         self, 
-        data: Dict[str, Any],
-        stages: Optional[List[PipelineStage]] = None,
-        skip_stages: Optional[List[PipelineStage]] = None
-    ) -> Dict[str, Any]:
+        data: dict[str, Any],
+        stages: list[PipelineStage] | None = None,
+        skip_stages: list[PipelineStage] | None = None
+    ) -> dict[str, Any]:
         """
         執行完整分析流程
         
@@ -244,12 +244,12 @@ class AgentCoordinator:
                 results[stage.value] = {
                     "stage": stage.value,
                     "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
         
         # 記錄執行歷史
         self._execution_history.append({
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "stages": list(results.keys()),
             "success": all("error" not in r for r in results.values())
         })
@@ -260,7 +260,7 @@ class AgentCoordinator:
             "summary": self._generate_summary(results)
         }
     
-    def _generate_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_summary(self, results: dict[str, Any]) -> dict[str, Any]:
         """生成結果摘要"""
         return {
             "total_stages": len(results),
@@ -268,11 +268,11 @@ class AgentCoordinator:
             "failed_stages": sum(1 for r in results.values() if "error" in r)
         }
     
-    def get_execution_history(self) -> List[Dict[str, Any]]:
+    def get_execution_history(self) -> list[dict[str, Any]]:
         """獲取執行歷史"""
         return self._execution_history.copy()
     
-    def list_agents(self) -> List[Dict[str, Any]]:
+    def list_agents(self) -> list[dict[str, Any]]:
         """列出所有已註冊的 Agent"""
         return [agent.to_dict() for agent in self.agents.values()]
     

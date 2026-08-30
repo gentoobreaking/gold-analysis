@@ -9,8 +9,8 @@ import logging
 import random
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 class ExperimentConfig:
     """A/B 測試配置"""
     name: str
-    variants: List[str]  # 例如 ["v1", "v2"]
-    traffic_split: List[float] = field(default_factory=lambda: [0.5, 0.5])
-    metrics: List[str] = field(default_factory=lambda: ["accuracy", "profit"])
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+    variants: list[str]  # 例如 ["v1", "v2"]
+    traffic_split: list[float] = field(default_factory=lambda: [0.5, 0.5])
+    metrics: list[str] = field(default_factory=lambda: ["accuracy", "profit"])
+    start_date: datetime | None = None
+    end_date: datetime | None = None
 
     def __post_init__(self) -> None:
         if len(self.variants) != len(self.traffic_split):
@@ -39,13 +39,13 @@ class ExperimentRun:
     """單次實驗紀錄（每條決策）"""
     experiment_id: str
     variant: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    features: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
+    features: dict[str, Any] = field(default_factory=dict)
     prediction: Any = None
     actual: Any = None
-    metrics: Dict[str, float] = field(default_factory=dict)
+    metrics: dict[str, float] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "variant": self.variant,
@@ -63,8 +63,8 @@ class ABTestEngine:
     """管理所有實驗與統計分析"""
 
     def __init__(self):
-        self.experiments: Dict[str, ExperimentConfig] = {}
-        self.runs: List[ExperimentRun] = []
+        self.experiments: dict[str, ExperimentConfig] = {}
+        self.runs: list[ExperimentRun] = []
         self.logger = logging.getLogger(__name__)
 
     # ─── 實驗生命週期 ────────────────────────────────────────
@@ -97,10 +97,10 @@ class ABTestEngine:
     def record_decision(
         self,
         exp_id: str,
-        features: Dict[str, Any],
+        features: dict[str, Any],
         prediction: Any,
         actual: Any,
-        metrics: Optional[Dict[str, float]] = None,
+        metrics: dict[str, float] | None = None,
     ) -> ExperimentRun:
         """將一次決策結果寫入實驗日誌"""
         config = self.experiments.get(exp_id)
@@ -121,7 +121,7 @@ class ABTestEngine:
         return run
 
     # ─── 統計分析 ────────────────────────────────────────
-    def summarize(self, exp_id: str) -> Dict[str, Any]:
+    def summarize(self, exp_id: str) -> dict[str, Any]:
         """針對單個實驗返回聚合統計"""
         config = self.experiments.get(exp_id)
         if not config:
@@ -129,14 +129,14 @@ class ABTestEngine:
         
         # 過濾相關 run
         relevant = [r for r in self.runs if r.experiment_id == exp_id]
-        summary: Dict[str, Any] = {"experiment": config.name, "variant_counts": {}, "metrics": {}}
+        summary: dict[str, Any] = {"experiment": config.name, "variant_counts": {}, "metrics": {}}
         
         # 統計每個變體的樣本量
         for variant in config.variants:
             variant_runs = [r for r in relevant if r.variant == variant]
             summary["variant_counts"][variant] = len(variant_runs)
             # 指標聚合（均值）
-            agg: Dict[str, float] = {}
+            agg: dict[str, float] = {}
             for metric in config.metrics:
                 values = [r.metrics.get(metric, 0.0) for r in variant_runs if metric in r.metrics]
                 agg[metric] = sum(values) / len(values) if values else 0.0
@@ -146,10 +146,10 @@ class ABTestEngine:
         return summary
 
     # ─── 持久化（簡易） ────────────────────────────────────
-    def export_runs(self) -> List[Dict[str, Any]]:
+    def export_runs(self) -> list[dict[str, Any]]:
         return [r.to_dict() for r in self.runs]
 
-    def import_runs(self, data: List[Dict[str, Any]]) -> None:
+    def import_runs(self, data: list[dict[str, Any]]) -> None:
         for item in data:
             run = ExperimentRun(
                 experiment_id=item["experiment_id"],

@@ -12,14 +12,12 @@ TAIFEX 期貨報價 API：
 
 from __future__ import annotations
 
-import asyncio
-import re
 import json
-from datetime import datetime, timedelta
-from typing import Optional
+import re
+from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/forward-curve", tags=["遠期曲線"])
@@ -57,7 +55,7 @@ _CACHE_TTL = 300  # seconds
 async def _fetch_with_cache(url: str, params: dict | None = None) -> str:
     """簡單記憶化快取，5 分鐘內不回頭請求"""
     key = f"{url}|{json.dumps(params or {}, sort_keys=True)}"
-    now = datetime.now().timestamp()
+    now = datetime.now(timezone.utc).timestamp()
     if key in _cache and (now - _cache[key]["ts"]) < _CACHE_TTL:
         return _cache[key]["html"]
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -83,25 +81,22 @@ async def _parse_taifex_gold_futures() -> list[ContractPoint]:
         # TAIFEX 頁面編碼為 Big5，需要留意
         html = html.encode('latin1').decode('big5', errors='replace')
         # 找 TGF1 相關行
-        rows = re.findall(
+        re.findall(
             r'<td[^>]*>(.*?)</td>\s*' * 8,
             html,
             re.DOTALL
         )
         # 實作細節視頁面結構而定，回退策略
-    except Exception:
+    except Exception:  # noqa: S110
         pass
-
     # 回退：嘗試另一個端點（futures DailyQuote）
     try:
         quote_url = "https://www.taifex.com.tw/eng/eng3/dailyQF.aspx"
         html = await _fetch_with_cache(quote_url)
         html = html.encode('latin1').decode('big5', errors='replace')
         # 解析 HTML 中 TGF1 的報價
-    except Exception:
+    except Exception:  # noqa: S110
         pass
-
-    # 無法取得 → 回退到模擬資料（註明非真實）
     return _fallback_mock_data()
 
 
@@ -111,15 +106,14 @@ def _fallback_mock_data() -> list[ContractPoint]:
     說明：黃金期貨（TGF1）在台灣期交所流動性極低，只有近月合約，
     遠期曲線參考國際現貨價格的時間結構。
     """
-    import random
     # 以現貨為基準，建構一個簡化遠期曲線
     # 近月合約 = 現貨 + 小幅升水（contango 0~0.5%）
     # 遠月合約 = 近月 + 遞增升水（最多 2%）
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     spot = 2650.0  # 模擬現貨價（NTD/公克）
     contracts = []
     # 台灣期交所黃金期貨每月第三個週三到期
-    base_date = datetime(now.year, now.month, 1)
+    base_date = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
     for i in range(8):
         # 每月往後
         m = base_date + timedelta(days=30 * i)
@@ -180,7 +174,7 @@ async def get_forward_curve_data() -> ForwardCurveResponse:
 
     return ForwardCurveResponse(
         spot_price=spot_price,
-        fetched_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        fetched_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
         contracts=contracts,
         summary=summary,
     )

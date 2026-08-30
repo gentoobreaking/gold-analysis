@@ -12,9 +12,9 @@ RSI 模組 (Relative Strength Index)
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Sequence
 
 import numpy as np
 
@@ -130,7 +130,7 @@ def generate_rsi_signals(
     rsi_values: Sequence[float],
     overbought: float = OVERBOUGHT,
     oversold: float = OVERSOLD,
-) -> List[RSISignal]:
+) -> list[RSISignal]:
     """
     生成 RSI 超買超賣信號
 
@@ -160,7 +160,7 @@ def detect_rsi_divergence(
     rsi_values: Sequence[float],
     lookback: int = 20,
     min_swing: float = 1.0,
-) -> List[RSIDivergence]:
+) -> list[RSIDivergence]:
     """
     檢測 RSI 背離
 

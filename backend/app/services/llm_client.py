@@ -7,6 +7,7 @@ LLM 客戶端 (T065) — OpenAI-compatible /v1/chat/completions，env-gated。
   呼叫 chat() 會拋出 LLMUnavailableError，由 macro_digest 管線優雅降級。
 - 所有網路呼叫失敗都轉為 LLMUnavailableError，絕不讓管線崩潰。
 """
+
 from __future__ import annotations
 
 import json
@@ -62,7 +63,9 @@ class LLMClient:
     ) -> str:
         """回傳 LLM 文字回應；未啟用或失敗時拋出 LLMUnavailableError。"""
         if not self.is_available():
-            raise LLMUnavailableError("LLM 未啟用或缺少 API key（請設定 CORE_LLM_ENABLED/CORE_LLM_API_KEY）")
+            raise LLMUnavailableError(
+                "LLM 未啟用或缺少 API key（請設定 CORE_LLM_ENABLED/CORE_LLM_API_KEY）"
+            )
 
         url = self.base_url.rstrip("/") + "/chat/completions"
         payload = {

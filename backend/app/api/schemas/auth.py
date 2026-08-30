@@ -2,10 +2,8 @@
 Authentication request/response schemas
 """
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
-
 
 # ── Request Schemas ──────────────────────────────────────────────────────────
 
@@ -14,7 +12,7 @@ class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, description="用戶名")
     email: EmailStr = Field(..., description="電子郵箱")
     password: str = Field(..., min_length=8, max_length=100, description="密碼")
-    display_name: Optional[str] = Field(None, max_length=100, description="顯示名稱")
+    display_name: str | None = Field(None, max_length=100, description="顯示名稱")
 
 
 class LoginRequest(BaseModel):
@@ -36,11 +34,11 @@ class ChangePasswordRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     """Update user profile request"""
-    display_name: Optional[str] = Field(None, max_length=100)
-    bio: Optional[str] = Field(None, max_length=500)
-    avatar_url: Optional[str] = Field(None, max_length=500)
-    timezone: Optional[str] = Field(None, max_length=50)
-    language: Optional[str] = Field(None, max_length=10)
+    display_name: str | None = Field(None, max_length=100)
+    bio: str | None = Field(None, max_length=500)
+    avatar_url: str | None = Field(None, max_length=500)
+    timezone: str | None = Field(None, max_length=50)
+    language: str | None = Field(None, max_length=10)
 
 
 # ── Response Schemas ──────────────────────────────────────────────────────────
@@ -64,9 +62,9 @@ class UserResponse(BaseModel):
     """User public profile response"""
     id: int
     username: str
-    display_name: Optional[str]
-    avatar_url: Optional[str]
-    bio: Optional[str]
+    display_name: str | None
+    avatar_url: str | None
+    bio: str | None
     is_premium: bool
     created_at: datetime
 
@@ -81,7 +79,7 @@ class UserDetailResponse(UserResponse):
     language: str
     is_active: bool
     is_verified: bool
-    last_login: Optional[datetime]
+    last_login: datetime | None
 
     class Config:
         from_attributes = True

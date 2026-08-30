@@ -3,8 +3,8 @@ Performance Analysis Module - 績效指標計算
 計算收益率、勝率、最大回撤、夏普比率等
 """
 import logging
-from typing import Optional
 from dataclasses import dataclass, field
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class PerformanceAnalyzer:
     def analyze(
         self,
         equity_curve: list[float],
-        trade_log: Optional[list[dict]] = None,
+        trade_log: list[dict] | None = None,
         periods_per_year: int = 252,
     ) -> PerformanceMetrics:
         """
@@ -135,17 +135,13 @@ class PerformanceAnalyzer:
         current_dd = 0.0
         max_duration = 0
         current_duration = 0
-        in_drawdown = False
 
         for dd in dd_array:
             if dd < -0.1:  # 回撤閾值
-                in_drawdown = True
                 current_duration += 1
                 current_dd = min(current_dd, dd)
-                if current_duration > max_duration:
-                    max_duration = current_duration
+                max_duration = max(max_duration, current_duration)
             else:
-                in_drawdown = False
                 current_duration = 0
 
         return abs(max_dd), max_duration

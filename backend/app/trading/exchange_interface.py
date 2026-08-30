@@ -9,21 +9,21 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Type
+from datetime import datetime, timedelta, timezone
+from typing import Any, ClassVar
 
 from .order_types import (
+    AccountBalance,
     Order,
     OrderSide,
-    OrderType,
     OrderStatus,
+    OrderType,
     Position,
     PositionSide,
-    AccountBalance,
-    Trade,
     TimeInForce,
+    Trade,
 )
-from .risk_rules import RiskRuleEngine, RiskRuleConfig
+from .risk_rules import RiskRuleConfig, RiskRuleEngine
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +37,21 @@ class OrderRequest:
     side: OrderSide
     order_type: OrderType
     quantity: float
-    price: Optional[float] = None
-    stop_price: Optional[float] = None
+    price: float | None = None
+    stop_price: float | None = None
     time_in_force: TimeInForce = TimeInForce.GTC
-    client_order_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    client_order_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class OrderResponse:
     """下單響應"""
     success: bool
-    order: Optional[Order] = None
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
-    raw_response: Optional[Dict[str, Any]] = None
+    order: Order | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    raw_response: dict[str, Any] | None = None
 
 
 @dataclass
@@ -62,7 +62,7 @@ class MarketData:
     ask: float
     last: float
     volume: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
     source: str = "mock"
     
     @property
@@ -91,16 +91,16 @@ class ExchangeInterface(ABC):
     """
     
     # 交易所元信息
-    exchange_name: str = "abstract"
-    supported_order_types: List[OrderType] = []
-    supported_symbols: List[str] = []
+    exchange_name: ClassVar[str] = "abstract"
+    supported_order_types: ClassVar[list[OrderType]] = []
+    supported_symbols: ClassVar[list[str]] = []
     
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        api_secret: Optional[str] = None,
+        api_key: str | None = None,
+        api_secret: str | None = None,
         is_demo: bool = True,
-        risk_config: Optional[RiskRuleConfig] = None,
+        risk_config: RiskRuleConfig | None = None,
     ):
         """
         初始化交易所接口
@@ -120,9 +120,9 @@ class ExchangeInterface(ABC):
         self.risk_engine = RiskRuleEngine(risk_config)
         
         # 本地訂單簿（用於模擬模式）
-        self._orders: Dict[str, Order] = {}
-        self._positions: Dict[str, Position] = {}
-        self._account: Optional[AccountBalance] = None
+        self._orders: dict[str, Order] = {}
+        self._positions: dict[str, Position] = {}
+        self._account: AccountBalance | None = None
         
         self.logger = logging.getLogger(f"{__name__}.{self.exchange_name}")
     
@@ -156,12 +156,12 @@ class ExchangeInterface(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def get_positions(self) -> List[Position]:
+    def get_positions(self) -> list[Position]:
         """獲取所有持倉"""
         raise NotImplementedError
     
     @abstractmethod
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """獲取指定標的持倉"""
         raise NotImplementedError
     
@@ -179,7 +179,7 @@ class ExchangeInterface(ABC):
         start: datetime,
         end: datetime,
         timeframe: str = "1D",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """獲取歷史價格"""
         raise NotImplementedError
     
@@ -204,12 +204,12 @@ class ExchangeInterface(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         """查詢訂單狀態"""
         raise NotImplementedError
     
     @abstractmethod
-    def get_open_orders(self) -> List[Order]:
+    def get_open_orders(self) -> list[Order]:
         """獲取所有未完成訂單"""
         raise NotImplementedError
     
@@ -220,7 +220,7 @@ class ExchangeInterface(ABC):
         if self.supported_symbols and symbol not in self.supported_symbols:
             raise ValueError(f"標的 {symbol} 不受 {self.exchange_name} 支持")
     
-    def _apply_risk_check(self, request: OrderRequest) -> Tuple[bool, List]:
+    def _apply_risk_check(self, request: OrderRequest) -> tuple[bool, list]:
         """應用風控檢查"""
         account = self.get_account()
         position = self.get_position(request.symbol)
@@ -254,15 +254,14 @@ class MockExchange(ExchangeInterface):
     - 帳戶餘額更新
     - 模擬成交（根據市場價格）
     """
-    
-    exchange_name = "MOCK"
-    supported_order_types = list(OrderType)
-    supported_symbols = ["GOLD", "XAUUSD", "GC.CMDTY", "EURUSD"]
+    exchange_name: ClassVar[str] = "MOCK"
+    supported_order_types: ClassVar[list[OrderType]] = list(OrderType)
+    supported_symbols: ClassVar[list[str]] = ["GOLD", "XAUUSD", "GC.CMDTY", "EURUSD"]
     
     def __init__(self, **kwargs):
         super().__init__(is_demo=True, **kwargs)
-        self._mock_market: Dict[str, MarketData] = {}
-        self._trades: List[Trade] = []
+        self._mock_market: dict[str, MarketData] = {}
+        self._trades: list[Trade] = []
         self._base_price = 2000.0  # 黃金基礎價格
         
         # 初始化模擬帳戶
@@ -309,10 +308,10 @@ class MockExchange(ExchangeInterface):
         self._account.total_equity = self._account.cash + total_unrealized
         return self._account
     
-    def get_positions(self) -> List[Position]:
+    def get_positions(self) -> list[Position]:
         return list(self._positions.values())
     
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         return self._positions.get(symbol)
     
     # ─── 市場數據 ────────────────────────────────────────────────────────────
@@ -335,7 +334,7 @@ class MockExchange(ExchangeInterface):
             ask=last + spread / 2,
             last=last,
             volume=base.volume + random.uniform(-100, 100),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             source=self.exchange_name,
         )
     
@@ -345,7 +344,7 @@ class MockExchange(ExchangeInterface):
         start: datetime,
         end: datetime,
         timeframe: str = "1D",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """生成模擬歷史數據"""
         import random
         prices = []
@@ -450,21 +449,21 @@ class MockExchange(ExchangeInterface):
             return False
         
         order.status = OrderStatus.CANCELLED
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now(timezone.utc)
         self.logger.info(f"訂單已取消: {order_id}")
         return True
     
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         return self._orders.get(order_id)
     
-    def get_open_orders(self) -> List[Order]:
+    def get_open_orders(self) -> list[Order]:
         return [o for o in self._orders.values() if not o.is_closed]
     
     # ─── 私有工具 ────────────────────────────────────────────────────────────
     
     def _generate_order_id(self) -> str:
         import uuid
-        return f"MOCK-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        return f"MOCK-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
     
     def _update_position(self, order: Order) -> None:
         """更新持倉"""
@@ -509,7 +508,7 @@ class MockExchange(ExchangeInterface):
         else:
             self._account.cash += order.total_value - order.commission
     
-    def get_trades(self) -> List[Trade]:
+    def get_trades(self) -> list[Trade]:
         """獲取所有成交記錄"""
         return self._trades
 
@@ -531,14 +530,14 @@ class OANDAAdapter(ExchangeInterface):
     ⚠️ 注意：此為設計實現，實際使用需要有效的 OANDA 帳戶和 API Token
     """
     
-    exchange_name = "OANDA"
-    supported_order_types = [
+    exchange_name: ClassVar[str] = "OANDA"
+    supported_order_types: ClassVar[list[OrderType]] = [
         OrderType.MARKET,
         OrderType.LIMIT,
         OrderType.STOP,
         OrderType.STOP_LIMIT,
     ]
-    supported_symbols = [
+    supported_symbols: ClassVar[list[str]] = [
         # FX majors
         "EUR_USD", "GBP_USD", "USD_JPY", "USD_CHF",
         # Commodities
@@ -553,8 +552,8 @@ class OANDAAdapter(ExchangeInterface):
     
     def __init__(
         self,
-        account_id: Optional[str] = None,
-        api_key: Optional[str] = None,
+        account_id: str | None = None,
+        api_key: str | None = None,
         is_demo: bool = True,
         **kwargs,
     ):
@@ -583,10 +582,10 @@ class OANDAAdapter(ExchangeInterface):
         # TODO: 調用 GET /v3/accounts/{accountID}
         raise NotImplementedError()
     
-    def get_positions(self) -> List[Position]:
+    def get_positions(self) -> list[Position]:
         raise NotImplementedError()
     
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         raise NotImplementedError()
     
     def get_market_data(self, symbol: str) -> MarketData:
@@ -599,7 +598,7 @@ class OANDAAdapter(ExchangeInterface):
         start: datetime,
         end: datetime,
         timeframe: str = "1D",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         # TODO: 調用 GET /v3/instruments/{instrument}/candles
         raise NotImplementedError()
     
@@ -611,8 +610,8 @@ class OANDAAdapter(ExchangeInterface):
         # TODO: 調用 PUT /v3/accounts/{accountID}/orders/{orderID}/cancel
         raise NotImplementedError()
     
-    def get_order(self, order_id: str) -> Optional[Order]:
+    def get_order(self, order_id: str) -> Order | None:
         raise NotImplementedError()
     
-    def get_open_orders(self) -> List[Order]:
+    def get_open_orders(self) -> list[Order]:
         raise NotImplementedError()

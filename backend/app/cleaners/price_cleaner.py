@@ -4,9 +4,10 @@ Price Cleaner - 價格數據清洗器
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from typing import Any
+
 import numpy as np
+
 from ..validators.config import get_cleaning_settings
 
 logger = logging.getLogger(__name__)
@@ -17,14 +18,14 @@ class PriceCleaner:
     
     def __init__(self):
         self.settings = get_cleaning_settings()
-        self._last_stats: Dict[str, Any] = {}
+        self._last_stats: dict[str, Any] = {}
     
     def clean_missing_values(
         self, 
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price",
-        method: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        method: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         處理缺失值
         
@@ -70,11 +71,10 @@ class PriceCleaner:
     
     def _interpolate_missing(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """線性插值處理缺失值"""
-        import copy
         
         # 提取有效值
         values = []
@@ -104,7 +104,7 @@ class PriceCleaner:
         
         return result
     
-    def _simple_interpolate(self, values: List[float]) -> List[float]:
+    def _simple_interpolate(self, values: list[float]) -> list[float]:
         """簡單線性插值（無 pandas 依賴）"""
         result = values.copy()
         n = len(values)
@@ -134,9 +134,9 @@ class PriceCleaner:
     
     def remove_duplicates(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         key_field: str = "timestamp"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         移除重複數據
         
@@ -189,9 +189,9 @@ class PriceCleaner:
     
     def fix_anomalies(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price"
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         修正異常值
         
@@ -269,10 +269,10 @@ class PriceCleaner:
     
     def clean_all(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price",
         key_field: str = "timestamp"
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         執行完整清洗流程
         
@@ -286,7 +286,7 @@ class PriceCleaner:
         Returns:
             (清洗後的數據, 完整統計)
         """
-        stats: Dict[str, Any] = {}
+        stats: dict[str, Any] = {}
         original_count = len(data)
         
         # Step 1: 移除重複
@@ -314,13 +314,13 @@ class PriceCleaner:
 
         return data, stats
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """取得最近一次操作的統計信息"""
         return self._last_stats.copy()
 
 
 # 預設實例
-_default_cleaner: Optional[PriceCleaner] = None
+_default_cleaner: PriceCleaner | None = None
 
 
 def get_price_cleaner() -> PriceCleaner:

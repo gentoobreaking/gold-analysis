@@ -12,9 +12,8 @@ K 線形態模組 (Candlestick Patterns)
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -62,7 +61,7 @@ class TrendScore:
     score: float             # -100 到 100
     trend: str               # "bullish" / "bearish" / "neutral"
     confidence: float        # 0.0 ~ 1.0
-    breakdown: Dict[str, float]
+    breakdown: dict[str, float]
 
 
 # ─── 形態偵測器封裝類 ────────────────────────────────────────────────────────
@@ -77,7 +76,7 @@ class PatternDetector:
     def __init__(self, min_strength: float = 1.0):
         self.min_strength = min_strength
 
-    def detect(self, df) -> List[CandlestickPattern]:
+    def detect(self, df) -> list[CandlestickPattern]:
         return detect_patterns(df, min_strength=self.min_strength)
 
     def bullish_count(self, df) -> int:
@@ -149,7 +148,7 @@ def _is_bearish_engulfing(o1, c1, o2, c2) -> bool:
     return c1 > o1 and c2 < o2 and c2 <= o1 and c2 < c1
 
 
-def detect_patterns(df, min_strength: float = 1.0) -> List[CandlestickPattern]:
+def detect_patterns(df, min_strength: float = 1.0) -> list[CandlestickPattern]:
     """
     檢測 K 線形態
 
@@ -165,7 +164,7 @@ def detect_patterns(df, min_strength: float = 1.0) -> List[CandlestickPattern]:
 
     for i in range(n - 1):
         o1, h1, l1, c1 = _ohlc(df, i)
-        o2, h2, l2, c2 = _ohlc(df, i + 1)
+        o2, _h2, _l2, c2 = _ohlc(df, i + 1)
 
         # 十字星
         if _is_doji(o1, c1, h1, l1):
@@ -200,8 +199,8 @@ def detect_patterns(df, min_strength: float = 1.0) -> List[CandlestickPattern]:
     # 三根 K 線形態（晨星/暮星/三白兵/三黑鴉）
     for i in range(n - 2):
         o1, h1, l1, c1 = _ohlc(df, i)
-        o2, h2, l2, c2 = _ohlc(df, i + 1)
-        o3, h3, l3, c3 = _ohlc(df, i + 2)
+        o2, _h2, _l2, c2 = _ohlc(df, i + 1)
+        o3, _h3, _l3, c3 = _ohlc(df, i + 2)
 
         # 晨星（看漲）
         if c1 < o1 and abs(c2 - o2) < (o2 - c2 if o2 != c2 else 1) * 0.5 and c3 > o3 and c3 > (o1 + c1) / 2:
@@ -245,7 +244,7 @@ def find_support_resistance(
     lookback: int = 50,
     min_touches: int = 2,
     tolerance: float = 0.005,
-) -> List[SupportResistance]:
+) -> list[SupportResistance]:
     """
     基於局部極值識別支撐阻力位
 
@@ -259,8 +258,7 @@ def find_support_resistance(
         支撐阻力位列表
     """
     n = len(df)
-    if n < lookback:
-        lookback = n
+    lookback = min(lookback, n)
 
     lows = df["low"].iloc[-lookback:].values
     highs = df["high"].iloc[-lookback:].values
@@ -281,7 +279,7 @@ def find_support_resistance(
                 troughs.append((i, arr[i]))
         return troughs
 
-    levels: List[SupportResistance] = []
+    levels: list[SupportResistance] = []
 
     # 聚合相近極值
     def aggregate_levels(extrema, level_type, tolerance_pct):
@@ -343,7 +341,7 @@ def compute_trend_score(
     n = len(df)
     closes = df["close"].values
 
-    breakdown: Dict[str, float] = {}
+    breakdown: dict[str, float] = {}
 
     # 1. 均線方向
     ma_s = np.full(n, np.nan)

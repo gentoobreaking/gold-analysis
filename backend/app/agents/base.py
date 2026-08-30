@@ -5,9 +5,9 @@ GoldAnalysisAgent 基類 - OpenClaw Agent 框架集成
 所有專業分析 Agent（數據收集、技術分析、基本面分析等）都應繼承此類。
 """
 
-from typing import Optional, Any, Dict
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class GoldAnalysisAgent(ABC):
         model: str = "qclaw/modelroute",
         temperature: float = 0.5,
         max_tokens: int = 2000,
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None
     ):
         """
         初始化 GoldAnalysisAgent
@@ -62,7 +62,7 @@ class GoldAnalysisAgent(ABC):
         logger.debug(f"Agent [{self.name}] initialized")
     
     @abstractmethod
-    async def analyze(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         核心分析接口（子類必須實現）
         
@@ -72,9 +72,8 @@ class GoldAnalysisAgent(ABC):
         Returns:
             分析結果字典
         """
-        pass
     
-    async def preprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def preprocess(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         預處理鉤子（可被子類重寫）
         
@@ -86,7 +85,7 @@ class GoldAnalysisAgent(ABC):
         """
         return data
     
-    async def postprocess(self, result: Dict[str, Any]) -> Dict[str, Any]:
+    async def postprocess(self, result: dict[str, Any]) -> dict[str, Any]:
         """
         後處理鉤子（可被子類重寫）
         
@@ -98,7 +97,7 @@ class GoldAnalysisAgent(ABC):
         """
         return result
     
-    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         完整執行流程：預處理 -> 分析 -> 後處理
         
@@ -119,7 +118,7 @@ class GoldAnalysisAgent(ABC):
         
         return final
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """將 Agent 配置轉換為字典"""
         return {
             "name": self.name,

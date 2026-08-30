@@ -6,14 +6,14 @@ Model Monitor - 監控已部署模型的運行狀態與數據漂移
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pandas as pd
 
-from .model_trainer import ModelRegistry
 from .feature_engineering import FeatureEngineer
 from .model_evaluator import ModelEvaluator
+from .model_trainer import ModelRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class DriftDetector:
 
     def __init__(self, threshold: float = 0.05):
         self.threshold = threshold
-        self.reference_stats: Dict[str, Any] = {}
+        self.reference_stats: dict[str, Any] = {}
 
     def fit_reference(self, data: pd.DataFrame) -> None:
         """使用歷史基線數據建立參考分佈"""
@@ -34,9 +34,9 @@ class DriftDetector:
             }
         logger.info("漂移檢測參考統計已建立")
 
-    def check(self, data: pd.DataFrame) -> Dict[str, bool]:
+    def check(self, data: pd.DataFrame) -> dict[str, bool]:
         """檢查當前數據是否發生漂移，返回 {feature: bool}"""
-        drifted: Dict[str, bool] = {}
+        drifted: dict[str, bool] = {}
         for col, ref in self.reference_stats.items():
             if col not in data.columns:
                 continue
@@ -52,43 +52,43 @@ class DriftDetector:
 class ModelHealthChecker:
     """模型健康檢查與指標報告"""
 
-    def __init__(self, model_dir: Optional[str] = None):
+    def __init__(self, model_dir: str | None = None):
         self.registry = ModelRegistry(model_dir)
         self.evaluator = ModelEvaluator()
         self.drift_detector = DriftDetector()
         self.logger = logging.getLogger(__name__)
-        self.last_checked: Optional[datetime] = None
+        self.last_checked: datetime | None = None
         self.check_interval = timedelta(minutes=10)
 
-    def _load_latest_model(self) -> tuple[Any, Dict[str, Any]]:
+    def _load_latest_model(self) -> tuple[Any, dict[str, Any]]:
         latest = self.registry.get_latest()
         if not latest:
             raise RuntimeError("未找到已註冊的模型")
         return self.registry.load_model(latest["version"], latest["model_name"]), latest
 
-    def health_check(self, recent_data: pd.DataFrame, label_key: str = "label") -> Dict[str, Any]:
+    def health_check(self, recent_data: pd.DataFrame, label_key: str = "label") -> dict[str, Any]:
         """對最近的數據執行完整健康檢查"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if self.last_checked and now - self.last_checked < self.check_interval:
             self.logger.debug("檢查間隔過短，跳過本輪健康檢查")
             return {"skipped": True}
         self.last_checked = now
-        
+
         # 1. 載入模型
         model, latest = self._load_latest_model()
-        
+
         # 2. 特徵工程（使用相同的 FE 設定）
         fe = FeatureEngineer()
         X = fe.fit_transform(recent_data.drop(columns=[label_key]))
         y = recent_data[label_key]
-        
+
         # 3. 產生預測 & 評估指標
         y_pred = model.predict(X)
         try:
             y_proba = model.predict_proba(X)
         except Exception:
             y_proba = None
-        
+
         report = self.evaluator.evaluate_classification(
             y_true=y.values,
             y_pred=y_pred,
@@ -96,14 +96,14 @@ class ModelHealthChecker:
             model_name=latest["model_name"],
             version=latest["version"],
         )
-        
+
         # 4. 漂移檢測
         if not self.drift_detector.reference_stats:
             self.drift_detector.fit_reference(X)
             drift = {k: False for k in X.columns}
         else:
             drift = self.drift_detector.check(X)
-        
+
         # 5. 整合報告
         health = {
             "timestamp": now.isoformat(),
@@ -113,6 +113,8 @@ class ModelHealthChecker:
         }
         self.logger.info("模型健康檢查完成")
         return health
+
+
 class ModelMonitor:
     """High-level model monitor: drift + health snapshot.
 
@@ -120,7 +122,9 @@ class ModelMonitor:
     single ``snapshot`` the retraining orchestrator consumes.
     """
 
-    def __init__(self, drift_threshold: float = 0.05, health_checker: Optional[ModelHealthChecker] = None):
+    def __init__(
+        self, drift_threshold: float = 0.05, health_checker: ModelHealthChecker | None = None
+    ):
         self.drift = DriftDetector(threshold=drift_threshold)
         self.health = health_checker or ModelHealthChecker()
         self._reference_fit = False
@@ -132,9 +136,9 @@ class ModelMonitor:
         self.drift.fit_reference(feats)
         self._reference_fit = True
 
-    def snapshot(self, prices: Optional[pd.DataFrame] = None) -> Dict[str, Any]:
-        alerts: List[str] = []
-        out: Dict[str, Any] = {"alerts": alerts, "drift": {}, "health": {}}
+    def snapshot(self, prices: pd.DataFrame | None = None) -> dict[str, Any]:
+        alerts: list[str] = []
+        out: dict[str, Any] = {"alerts": alerts, "drift": {}, "health": {}}
         if prices is None:
             return out
         fe = FeatureEngineer()

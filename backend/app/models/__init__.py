@@ -1,18 +1,18 @@
 """
 SQLAlchemy models package
 """
-from .user import User
-from .decision import Decision, DecisionType, DecisionSource
+from .alert import Alert
+from .decision import Decision, DecisionSource, DecisionType
 from .portfolio import Portfolio
 from .portfolio_holding import PortfolioHolding
-from .alert import Alert
+from .user import User
 
 __all__ = [
-    "User",
+    "Alert",
     "Decision",
-    "DecisionType",
     "DecisionSource",
+    "DecisionType",
     "Portfolio",
     "PortfolioHolding",
-    "Alert",
+    "User",
 ]

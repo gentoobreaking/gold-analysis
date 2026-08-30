@@ -3,14 +3,12 @@ Alert Service - 告警規則引擎
 支援價格告警、指標告警、信號告警
 """
 import logging
-from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import select, update, delete
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.alert import Alert, AlertType
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,7 @@ class AlertService:
         alert_type: AlertType,
         asset: str,
         target_price: float,
-        extra_data: Optional[str] = None,
+        extra_data: str | None = None,
     ) -> Alert:
         """創建告警"""
         alert = Alert(
@@ -56,7 +54,7 @@ class AlertService:
         )
         return alert
 
-    async def get_alert(self, alert_id: int) -> Optional[Alert]:
+    async def get_alert(self, alert_id: int) -> Alert | None:
         stmt = select(Alert).where(Alert.id == alert_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -65,7 +63,7 @@ class AlertService:
         """列出用戶告警"""
         stmt = select(Alert).where(Alert.user_id == user_id)
         if active_only:
-            stmt = stmt.where(Alert.is_active == True)  # noqa: E712
+            stmt = stmt.where(Alert.is_active == True)
         stmt = stmt.order_by(Alert.created_at.desc())
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
@@ -111,7 +109,7 @@ class AlertService:
         stmt = select(Alert).where(
             Alert.user_id == user_id,
             Alert.asset == asset,
-            Alert.is_active == True,  # noqa: E712
+            Alert.is_active == True,
         )
         result = await self.session.execute(stmt)
         alerts = result.scalars().all()
@@ -119,7 +117,7 @@ class AlertService:
         for alert in alerts:
             if self._is_price_triggered(alert, current_price):
                 alert.is_active = False
-                alert.triggered_at = datetime.utcnow()
+                alert.triggered_at = datetime.now(timezone.utc)
                 triggered.append(alert)
                 logger.info(
                     f"Alert {alert.id} triggered: {asset} price {current_price} "
@@ -166,22 +164,19 @@ class AlertService:
             Alert.user_id == user_id,
             Alert.asset == asset,
             Alert.alert_type == AlertType.INDICATOR_CROSS,
-            Alert.is_active == True,  # noqa: E712
+            Alert.is_active == True,
         )
         result = await self.session.execute(stmt)
         alerts = result.scalars().all()
 
         for alert in alerts:
-            if direction == "above" and indicator_value >= threshold:
-                if self._matches_indicator_filter(alert, indicator_name, direction):
-                    alert.is_active = False
-                    alert.triggered_at = datetime.utcnow()
-                    triggered.append(alert)
-            elif direction == "below" and indicator_value <= threshold:
-                if self._matches_indicator_filter(alert, indicator_name, direction):
-                    alert.is_active = False
-                    alert.triggered_at = datetime.utcnow()
-                    triggered.append(alert)
+            if (
+                direction == "above" and indicator_value >= threshold
+                or direction == "below" and indicator_value <= threshold
+            ) and self._matches_indicator_filter(alert, indicator_name, direction):
+                alert.is_active = False
+                alert.triggered_at = datetime.now(timezone.utc)
+                triggered.append(alert)
 
         if triggered:
             await self.session.commit()
@@ -221,17 +216,16 @@ class AlertService:
             Alert.user_id == user_id,
             Alert.asset == asset,
             Alert.alert_type == AlertType.VOLUME_SPIKE,  # 用 VOLUME_SPIKE 代替信號告警
-            Alert.is_active == True,  # noqa: E712
+            Alert.is_active == True,
         )
         result = await self.session.execute(stmt)
         alerts = result.scalars().all()
 
         for alert in alerts:
-            if alert.extra_data and new_signal in alert.extra_data:
-                if signal_strength >= alert.target_price:  # target_price 存放信號強度閾值
-                    alert.is_active = False
-                    alert.triggered_at = datetime.utcnow()
-                    triggered.append(alert)
+            if alert.extra_data and new_signal in alert.extra_data and signal_strength >= alert.target_price:
+                alert.is_active = False
+                alert.triggered_at = datetime.now(timezone.utc)
+                triggered.append(alert)
 
         if triggered:
             await self.session.commit()
@@ -244,8 +238,8 @@ class AlertService:
         self,
         user_id: int,
         price_data: dict[str, float],
-        indicator_data: Optional[dict] = None,
-        signal_data: Optional[dict] = None,
+        indicator_data: dict | None = None,
+        signal_data: dict | None = None,
     ) -> dict[str, list[Alert]]:
         """
         批量檢查所有告警

@@ -1,23 +1,20 @@
 """
 Price data routes - current prices, historical data, technical indicators
 """
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.user import User
-from app.db.config import get_db_session
+from app.api.middleware.auth import get_current_active_user
 from app.api.schemas.prices import (
     CurrentPriceResponse,
     HistoricalPricesResponse,
-    OHLCVData,
     TechnicalIndicatorsResponse,
 )
-from app.api.middleware.auth import get_current_active_user
+from app.db.config import get_db_session
+from app.models.user import User
 from app.services.price_service import PriceService
-
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -27,8 +24,8 @@ router = APIRouter()
 @router.get("/current", response_model=CurrentPriceResponse)
 async def get_current_price(
     symbol: str = Query(default="GOLD", description="資產符號"),
-    current_user: Optional[User] = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User | None = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> CurrentPriceResponse:
     """
     獲取黃金實時價格。
@@ -58,11 +55,11 @@ async def get_current_price(
 async def get_historical_prices(
     symbol: str = Query(default="GOLD", description="資產符號"),
     interval: str = Query(default="1h", description="時間間隔: 1m, 5m, 15m, 1h, 4h, 1d"),
-    start_time: Optional[datetime] = Query(None, description="開始時間"),
-    end_time: Optional[datetime] = Query(None, description="結束時間"),
+    start_time: datetime | None = Query(None, description="開始時間"),  # noqa: B008
+    end_time: datetime | None = Query(None, description="結束時間"),  # noqa: B008
     limit: int = Query(default=100, ge=1, le=1000, description="返回數量"),
-    current_user: Optional[User] = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User | None = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> HistoricalPricesResponse:
     """
     獲取歷史價格數據。
@@ -81,7 +78,7 @@ async def get_historical_prices(
     
     # Default time range
     if end_time is None:
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
     if start_time is None:
         start_time = end_time - timedelta(days=7)
     
@@ -106,8 +103,8 @@ async def get_historical_prices(
 async def get_technical_indicators(
     symbol: str = Query(default="GOLD", description="資產符號"),
     period: int = Query(default=14, ge=5, le=200, description="計算週期"),
-    current_user: Optional[User] = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User | None = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> TechnicalIndicatorsResponse:
     """
     獲取技術指標數據。
@@ -137,12 +134,12 @@ async def get_technical_indicators(
         )
 
 
-@router.get("/multi", response_model=Dict[str, Any])
+@router.get("/multi", response_model=dict[str, Any])
 async def get_multi_assets_prices(
     symbols: str = Query(..., description="資產符號列表（逗號分隔）"),
-    current_user: Optional[User] = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
-) -> Dict[str, Any]:
+    current_user: User | None = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+) -> dict[str, Any]:
     """
     批量獲取多個資產價格。
     
@@ -174,9 +171,9 @@ async def convert_currency(
     amount: float = Query(..., gt=0, description="金額"),
     from_currency: str = Query(..., description="源貨幣"),
     to_currency: str = Query(..., description="目標貨幣"),
-    current_user: Optional[User] = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
-) -> Dict[str, Any]:
+    current_user: User | None = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+) -> dict[str, Any]:
     """
     貨幣轉換。
     
@@ -202,5 +199,5 @@ async def convert_currency(
         "from_currency": from_currency,
         "to_currency": to_currency,
         "converted_amount": converted,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

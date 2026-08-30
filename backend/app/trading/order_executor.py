@@ -6,24 +6,23 @@ Order Executor - 訂單執行與結果處理
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .order_types import OrderSide, OrderType, TimeInForce
-from .exchange_interface import OrderRequest, OrderResponse
 from .exchange_client import ExchangeClient
+from .exchange_interface import OrderRequest, OrderResponse
+from .order_types import OrderSide, OrderType, TimeInForce
 
 logger = logging.getLogger(__name__)
 
 
 class OrderExecutionError(RuntimeError):
     """下單失敗的自訂例外"""
-    pass
 
 
 class OrderExecutor:
     """高層訂單執行器，提供簡潔 API 給決策系統使用"""
 
-    def __init__(self, client: Optional[ExchangeClient] = None, use_mock: bool = True, **client_kwargs):
+    def __init__(self, client: ExchangeClient | None = None, use_mock: bool = True, **client_kwargs):
         if client:
             self.client = client
         else:
@@ -31,8 +30,8 @@ class OrderExecutor:
         self.logger = logging.getLogger(__name__)
 
     # ─── 主要執行入口 ────────────────────────────────────────
-    def execute(self, symbol: str, side: str, quantity: float, order_type: str = "market", price: Optional[float] = None,
-                stop_price: Optional[float] = None, time_in_force: str = "GTC", client_order_id: Optional[str] = None) -> OrderResponse:
+    def execute(self, symbol: str, side: str, quantity: float, order_type: str = "market", price: float | None = None,
+                stop_price: float | None = None, time_in_force: str = "GTC", client_order_id: str | None = None) -> OrderResponse:
         """下單並返回統一的 OrderResponse
         
         Args:
@@ -77,7 +76,7 @@ class OrderExecutor:
             self.logger.warning(f"取消訂單失敗或不存在: {order_id}")
         return result
 
-    def get_open_orders(self) -> List[Any]:
+    def get_open_orders(self) -> list[Any]:
         return self.client.get_open_orders()
 
     def close(self) -> None:

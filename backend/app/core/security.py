@@ -6,13 +6,11 @@ used by authentication routes and middleware.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 import jwt
-from passlib.context import CryptContext
-
 from app.core.config import settings
-
+from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -28,8 +26,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-    data: Dict[str, Any],
-    expires_delta: Optional[timedelta] = None,
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
@@ -49,8 +47,8 @@ def create_access_token(
 
 
 def create_refresh_token(
-    data: Dict[str, Any],
-    expires_delta: Optional[timedelta] = None,
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT refresh token."""
     to_encode = data.copy()
@@ -69,7 +67,7 @@ def create_refresh_token(
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[Dict[str, Any]]:
+def verify_token(token: str) -> dict[str, Any] | None:
     """Verify a JWT token and return its payload if valid.
 
     Returns None if token is invalid, expired, or malformed.

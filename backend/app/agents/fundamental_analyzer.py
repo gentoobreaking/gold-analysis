@@ -12,11 +12,11 @@
 Author: 碼農 1 號
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from dataclasses import dataclass
-from enum import Enum
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Any
 
 from .base import GoldAnalysisAgent
 
@@ -50,7 +50,7 @@ class FactorAnalysis:
     confidence: float     # 分析置信度 (0.0 到 1.0)
     reasoning_zh: str     # 中文分析理由
     reasoning_en: str     # English reasoning
-    data_snapshot: Dict[str, Any]  # 數據快照
+    data_snapshot: dict[str, Any]  # 數據快照
     timestamp: str
 
 
@@ -72,7 +72,7 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
         self,
         name: str = "fundamental_analyzer",
         model: str = "qclaw/modelroute",
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None
     ):
         """
         初始化基本面分析 Agent
@@ -126,7 +126,7 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             "negative": 2.5,
         }
     
-    async def analyze(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         執行基本面分析
         
@@ -145,7 +145,7 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
         """
         logger.info(f"Starting fundamental analysis for {context.get('date', 'unknown')}")
         
-        date = context.get("date", datetime.now().strftime("%Y-%m-%d"))
+        date = context.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
         current_price = context.get("current_price", 0)
         
         # 1. 分析美元指數因素
@@ -189,7 +189,7 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
         
         return report
     
-    async def _analyze_dollar_index(self, context: Dict[str, Any]) -> FactorAnalysis:
+    async def _analyze_dollar_index(self, context: dict[str, Any]) -> FactorAnalysis:
         """分析美元指數因素"""
         dxy_value = context.get("dxy_value")
         
@@ -225,10 +225,10 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             reasoning_zh=reasoning,
             reasoning_en=f"DXY={dxy_value:.2f}. {'Strong USD weighs on gold.' if score < 0 else 'Weak USD supports gold.' if score > 0 else 'Neutral USD impact.'}",
             data_snapshot={"dxy_value": dxy_value},
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
     
-    async def _analyze_real_rate(self, context: Dict[str, Any]) -> FactorAnalysis:
+    async def _analyze_real_rate(self, context: dict[str, Any]) -> FactorAnalysis:
         """分析實際利率因素"""
         real_rate = context.get("real_rate")
         
@@ -266,10 +266,10 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             reasoning_zh=reasoning,
             reasoning_en=f"Real rate={real_rate:.2f}%. {'Low real rates support gold.' if score > 0 else 'High real rates weigh on gold.' if score < 0 else 'Neutral.'}",
             data_snapshot={"real_rate": real_rate},
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
     
-    async def _analyze_inflation(self, context: Dict[str, Any]) -> FactorAnalysis:
+    async def _analyze_inflation(self, context: dict[str, Any]) -> FactorAnalysis:
         """分析通脹預期因素"""
         inflation = context.get("inflation")
         
@@ -306,10 +306,10 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             reasoning_zh=reasoning,
             reasoning_en=f"Inflation={inflation:.1f}%. {'High inflation supports gold.' if score > 0 else 'Low inflation weighs on gold.' if score < 0 else 'Neutral.'}",
             data_snapshot={"inflation": inflation},
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
     
-    async def _analyze_geopolitical(self, context: Dict[str, Any]) -> FactorAnalysis:
+    async def _analyze_geopolitical(self, context: dict[str, Any]) -> FactorAnalysis:
         """分析地緣政治風險"""
         geo_score = context.get("geopolitical_score")
         
@@ -317,7 +317,7 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             # 使用默認值（可從情緒數據獲取）
             from ..tools.data_tools import DataTools
             data_tools = DataTools()
-            sentiment = await data_tools.get_sentiment_data()
+            await data_tools.get_sentiment_data()
             geo_score = 50  # 中性默認
         
         # 地緣政治風險評分（0-100）
@@ -347,10 +347,10 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             reasoning_zh=reasoning,
             reasoning_en=f"Geopolitical risk={geo_score}. {'High risk boosts gold.' if score > 0 else 'Low risk reduces safe-haven demand.' if score < 0 else 'Neutral.'}",
             data_snapshot={"geopolitical_score": geo_score},
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
     
-    async def _analyze_central_bank(self, context: Dict[str, Any]) -> FactorAnalysis:
+    async def _analyze_central_bank(self, context: dict[str, Any]) -> FactorAnalysis:
         """分析央行政策影響"""
         cb_policy = context.get("cb_policy")
         
@@ -385,10 +385,10 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             reasoning_zh=reasoning,
             reasoning_en=f"Fed rate={fed_rate:.2f}%. {'High rates weigh on gold.' if score < 0 else 'Low rates support gold.' if score > 0 else 'Neutral.'}",
             data_snapshot={"fed_rate": fed_rate, "cb_policy": cb_policy},
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
     
-    async def _analyze_gold_etf(self, context: Dict[str, Any]) -> FactorAnalysis:
+    async def _analyze_gold_etf(self, context: dict[str, Any]) -> FactorAnalysis:
         """分析黃金 ETF 持倉變化"""
         etf_flow = context.get("etf_flow")
         
@@ -425,10 +425,10 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             reasoning_zh=reasoning,
             reasoning_en=f"ETF flow=${etf_flow/1e6:.0f}M. {'Inflow supports gold.' if score > 0 else 'Outflow pressures gold.' if score < 0 else 'Neutral.'}",
             data_snapshot={"etf_flow": etf_flow},
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
     
-    def _calculate_composite_score(self, factors: List[FactorAnalysis]) -> float:
+    def _calculate_composite_score(self, factors: list[FactorAnalysis]) -> float:
         """
         計算加權綜合評分
         
@@ -461,9 +461,9 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
         self,
         date: str,
         current_price: float,
-        factors: List[FactorAnalysis],
+        factors: list[FactorAnalysis],
         composite_score: float
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """生成基本面分析報告"""
         
         # 判斷基本面方向
@@ -557,7 +557,7 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
             },
             "factor_summary": factor_summary,
             "weights": {k.value: v for k, v in self.factor_weights.items()},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
         logger.info(f"Fundamental analysis complete: score={composite_score}, outlook={outlook}")
@@ -566,8 +566,8 @@ class FundamentalAnalyzer(GoldAnalysisAgent):
     
     def sensitivity_analysis(
         self,
-        factor_changes: Dict[FactorType, float]
-    ) -> Dict[str, Any]:
+        factor_changes: dict[FactorType, float]
+    ) -> dict[str, Any]:
         """
         敏感性分析：評估因素變化對最終評分的影響
         

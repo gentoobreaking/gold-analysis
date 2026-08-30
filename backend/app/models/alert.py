@@ -1,14 +1,13 @@
 """
 Alert model - user-defined price alerts and notifications
 """
-from datetime import datetime
-from typing import Optional
-
-from sqlalchemy import String, Float, Boolean, DateTime, ForeignKey, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime, timezone
 from enum import Enum
 
 from app.db.config import Base
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class AlertType(str, Enum):
@@ -28,12 +27,12 @@ class Alert(Base):
     asset: Mapped[str] = mapped_column(String(20), nullable=False)
     target_price: Mapped[float] = mapped_column(Float, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    triggered_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    extra_data: Mapped[Optional[str]] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))
+    triggered_at: Mapped[datetime | None] = mapped_column(DateTime)
+    extra_data: Mapped[str | None] = mapped_column(String(500))
 
     # Relationship
-    user: Mapped["User"] = relationship(back_populates="alerts")
+    user: Mapped["User"] = relationship(back_populates="alerts")  # noqa: F821
 
     def __repr__(self):
         return f"<Alert(id={self.id}, asset={self.asset}, target={self.target_price}, active={self.is_active})>"

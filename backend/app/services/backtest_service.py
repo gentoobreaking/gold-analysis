@@ -3,18 +3,13 @@ Backtest Service - 決策回測系統
 實現歷史決策回放、績效分析
 """
 import logging
-import json
-from typing import Optional
-from datetime import datetime, timedelta
 from dataclasses import dataclass, field
+from datetime import datetime
 
+from app.analysis.performance import PerformanceAnalyzer, PerformanceMetrics
+from app.models.decision import Decision, DecisionType
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.decision import Decision, DecisionType
-from app.models.portfolio import Portfolio
-from app.models.portfolio_holding import PortfolioHolding
-from app.analysis.performance import PerformanceAnalyzer, PerformanceMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +18,13 @@ logger = logging.getLogger(__name__)
 class BacktestTrade:
     """回測交易記錄"""
     entry_time: datetime
-    exit_time: Optional[datetime]
+    exit_time: datetime | None
     direction: str          # buy / sell
     entry_price: float
-    exit_price: Optional[float]
+    exit_price: float | None
     quantity: float
-    pnl: Optional[float]   # 僅平倉後有值
-    pnl_pct: Optional[float]
+    pnl: float | None   # 僅平倉後有值
+    pnl_pct: float | None
     decision_id: int
     status: str = "open"   # open / closed
 
@@ -59,9 +54,9 @@ class BacktestService:
     async def get_decisions(
         self,
         portfolio_id: int,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        decision_types: Optional[list[DecisionType]] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        decision_types: list[DecisionType] | None = None,
     ) -> list[Decision]:
         """
         獲取歷史決策記錄
@@ -166,15 +161,12 @@ class BacktestService:
         market_prices: dict[str, float] = {}
         current_price = 1800.0  # 預設起始價
         entry_price = 0.0
-        entry_time: Optional[datetime] = None
+        entry_time: datetime | None = None
         quantity = 0.0
         position_open = False
 
-        current = start_date
-        day_count = 0
-
         # 模擬日線遍歷（每個決策一次，或按日）
-        for decision in decisions:
+        for day_count, decision in enumerate(decisions):
             # 模擬價格變動（隨機漫步）
             current_price = max(100, current_price * (1 + (hash(str(decision.id)) % 100 - 50) / 1000))
             market_prices[decision.asset] = current_price
@@ -242,8 +234,6 @@ class BacktestService:
             # 更新權益曲線
             holding_value = quantity * current_price if position_open else 0.0
             equity_curve.append(round(cash + holding_value, 2))
-            day_count += 1
-            current = decision.created_at
 
         # 平倉未了結頭寸
         if position_open:
@@ -346,10 +336,10 @@ class BacktestService:
         }
 
         results = {}
-        for name, types in strategies.items():
+        for name in strategies:
             if name == "buy_and_hold":
                 # 簡單 buy & hold
-                prices = await self._fetch_market_prices("GOLD", start_date, end_date)
+                await self._fetch_market_prices("GOLD", start_date, end_date)
                 start_p = 1800.0
                 end_p = 1900.0
                 ret = (end_p - start_p) / start_p * 100

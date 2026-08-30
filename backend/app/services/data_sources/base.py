@@ -8,7 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, ClassVar
 
 import httpx
 
@@ -21,8 +21,8 @@ class MarketData:
     symbol: str
     value: float
     timestamp: datetime
-    currency: Optional[str] = None
-    source: Optional[str] = None
+    currency: str | None = None
+    source: str | None = None
     metadata: dict = field(default_factory=dict)
 
 
@@ -31,20 +31,20 @@ class HistoricalData:
     """歷史數據統一模型"""
     symbol: str
     date: datetime
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
-    close: Optional[float] = None
-    volume: Optional[float] = None
-    source: Optional[str] = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+    source: str | None = None
 
 
 class BaseDataSource(ABC):
     """數據源適配器基類"""
     
     # 類級別速率限制追蹤（各子類實例共享）
-    _rate_limit_tracker: dict[str, list[float]] = {}
-    _rate_limit_lock = asyncio.Lock()
+    _rate_limit_tracker: ClassVar[dict[str, list[float]]] = {}
+    _rate_limit_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
     
     def __init__(self, api_key: str, base_url: str):
         self.api_key = api_key
@@ -56,25 +56,22 @@ class BaseDataSource(ABC):
     @abstractmethod
     def name(self) -> str:
         """數據源名稱"""
-        pass
     
     @abstractmethod
     async def get_price(self, symbol: str) -> MarketData:
         """取得即時價格"""
-        pass
     
     @abstractmethod
     async def get_historical(
         self, symbol: str, start: datetime, end: datetime
     ) -> list[HistoricalData]:
         """取得歷史數據"""
-        pass
     
     async def _request(
         self,
         method: str,
         url: str,
-        params: dict[str, Any] = None,
+        params: dict[str, Any] | None = None,
         rate_limit_calls: int = 5,
         rate_limit_period: int = 60,
     ) -> dict[str, Any]:
@@ -82,7 +79,7 @@ class BaseDataSource(ABC):
         統一 HTTP 請求方法，帶重試、限流、緩存
         """
         # 檢查緩存
-        cache_key = f"{method}:{url}:{str(params)}"
+        cache_key = f"{method}:{url}:{params!s}"
         if cache_key in self._cache:
             cached_data, cached_time = self._cache[cache_key]
             if time.time() - cached_time < self.settings.cache_ttl:

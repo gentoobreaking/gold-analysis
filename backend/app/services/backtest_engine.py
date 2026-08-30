@@ -11,6 +11,7 @@ Backtest engine (T063) - 向量化回測 + 模擬下單(paper replay) + walk-for
 - walk-forward：在 in-sample 訓練窗選最佳參數，在 out-of-sample 測試窗驗證，輸出樣本外績效。
 - paper replay：重放歷史信號序列，對比實際走勢與 buy & hold 基準。
 """
+
 from __future__ import annotations
 
 import logging
@@ -35,6 +36,7 @@ class BacktestConfig:
 
 # ── 策略信號產生器 ────────────────────────────────────────────────────────────
 
+
 def ma_crossover_signals(prices: pd.Series, fast: int = 20, slow: int = 50) -> pd.Series:
     ma_fast = prices.rolling(fast, min_periods=fast // 2).mean()
     ma_slow = prices.rolling(slow, min_periods=slow // 2).mean()
@@ -42,7 +44,9 @@ def ma_crossover_signals(prices: pd.Series, fast: int = 20, slow: int = 50) -> p
     return signal
 
 
-def rsi_signals(prices: pd.Series, period: int = 14, buy: float = 30.0, sell: float = 70.0) -> pd.Series:
+def rsi_signals(
+    prices: pd.Series, period: int = 14, buy: float = 30.0, sell: float = 70.0
+) -> pd.Series:
     delta = prices.diff()
     gain = delta.clip(lower=0).rolling(period, min_periods=period).mean()
     loss = (-delta.clip(upper=0)).rolling(period, min_periods=period).mean()
@@ -216,7 +220,9 @@ class BacktestEngine:
 
     # ── 模擬下單（paper replay）：重放歷史信號，對比實際走勢 ────────────────
 
-    def paper_replay(self, prices: Sequence[float], decision_signals: Sequence[float]) -> dict[str, Any]:
+    def paper_replay(
+        self, prices: Sequence[float], decision_signals: Sequence[float]
+    ) -> dict[str, Any]:
         strategy = self.run(prices, decision_signals)
         buy_hold = self.run(prices, [1.0] * len(list(prices)))
         return {

@@ -1,6 +1,7 @@
 """
 Portfolio risk schemas (T064) - 相關性矩陣 / 組合 VaR-CVaR / 因子曝險
 """
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
@@ -8,10 +9,9 @@ from pydantic import BaseModel, Field
 
 class PortfolioRiskRequest(BaseModel):
     """投資組合風險計算請求"""
+
     weights: list[float] = Field(..., description="各資產權重（總和建議≈1）")
-    returns: dict[str, list[float]] = Field(
-        ..., description="各資產收益率序列 {資產名: 收益列}"
-    )
+    returns: dict[str, list[float]] = Field(..., description="各資產收益率序列 {資產名: 收益列}")
     factor_returns: dict[str, list[float]] | None = Field(
         None, description="因子收益率序列 {因子名: 收益列}，用於因子曝險分解"
     )
@@ -28,6 +28,7 @@ class CorrelationMatrix(BaseModel):
 
 class PortfolioRiskResponse(BaseModel):
     """投資組合風險回應"""
+
     correlation: CorrelationMatrix
     portfolio_var: float
     portfolio_cvar: float
@@ -38,6 +39,7 @@ class PortfolioRiskResponse(BaseModel):
 
 class RiskSampleResponse(BaseModel):
     """範例資料（真實黃金價格 + 合成因子），供前端儀表板預覽"""
+
     assets: list[str]
     correlation: CorrelationMatrix
     factor_exposure: dict[str, float]

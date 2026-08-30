@@ -10,10 +10,10 @@ import asyncio
 import json
 import logging
 import time
-from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class WSMessage:
     channel: str
     data: Any
     timestamp: float = field(default_factory=time.time)
-    subscription_id: Optional[str] = None
+    subscription_id: str | None = None
 
     def to_json(self) -> str:
         return json.dumps({
@@ -50,7 +50,7 @@ class WSMessage:
         })
 
     @classmethod
-    def from_json(cls, raw: str) -> "WSMessage":
+    def from_json(cls, raw: str) -> WSMessage:
         obj = json.loads(raw)
         return cls(
             type=MessageType(obj["type"]),
@@ -71,8 +71,8 @@ class ConnectionManager:
     """
 
     def __init__(self):
-        self._connections: Dict[str, Any] = {}   # conn_id -> websocket
-        self._subscriptions: Dict[str, Set[str]] = {}  # conn_id -> set of channels
+        self._connections: dict[str, Any] = {}   # conn_id -> websocket
+        self._subscriptions: dict[str, set[str]] = {}  # conn_id -> set of channels
         self._counter = 0
         self._lock = asyncio.Lock()
 
@@ -115,12 +115,11 @@ class ConnectionManager:
     async def broadcast(self, channel: str, message: WSMessage) -> int:
         """廣播消息到指定頻道的所有連接"""
         sent = 0
-        async with self._lock:
-            targets = [
-                (conn_id, ws)
-                for conn_id, channels in self._subscriptions.items()
-                if channel in channels and conn_id in self._connections
-            ]
+        targets = [
+            (conn_id, self._connections[conn_id])
+            for conn_id, channels in self._subscriptions.items()
+            if channel in channels and conn_id in self._connections
+        ]
         for conn_id, ws in targets:
             try:
                 await ws.send(message.to_json())
@@ -143,7 +142,7 @@ class WebSocketServer:
     處理連接、消息路由、廣播、心跳。
     """
 
-    def __init__(self, manager: Optional[ConnectionManager] = None):
+    def __init__(self, manager: ConnectionManager | None = None):
         self.manager = manager or ConnectionManager()
         self._running = False
         self._server = None
@@ -237,16 +236,16 @@ class WebSocketClient:
         uri: str,
         reconnect_delay: float = 1.0,
         max_delay: float = 60.0,
-        on_message: Optional[Callable[[WSMessage], None]] = None,
+        on_message: Callable[[WSMessage], None] | None = None,
     ):
         self.uri = uri
         self.reconnect_delay = reconnect_delay
         self.max_delay = max_delay
         self.on_message = on_message
-        self._ws: Optional[Any] = None
+        self._ws: Any | None = None
         self._running = False
-        self._subscriptions: Set[str] = set()
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._subscriptions: set[str] = set()
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     async def connect(self) -> bool:
         """連接服務器（帶重試）"""
@@ -321,9 +320,9 @@ class RealtimePushService:
     內建 ConnectionManager 管理連接，應用層直接使用此类即可。
     """
 
-    def __init__(self, manager: Optional[ConnectionManager] = None):
+    def __init__(self, manager: ConnectionManager | None = None):
         self.manager = manager or ConnectionManager()
-        self._handlers: Dict[str, List[Callable[[WSMessage], None]]] = {
+        self._handlers: dict[str, list[Callable[[WSMessage], None]]] = {
             MessageType.PRICE.value: [],
             MessageType.DECISION.value: [],
             MessageType.ALERT.value: [],
@@ -331,7 +330,7 @@ class RealtimePushService:
 
     # ── 高層推送介面 ────────────────────────────────────────────────────
 
-    async def push_price(self, symbol: str, price: float, metadata: Optional[Dict] = None) -> int:
+    async def push_price(self, symbol: str, price: float, metadata: dict | None = None) -> int:
         """推送價格更新"""
         msg = WSMessage(
             type=MessageType.PRICE,
@@ -365,7 +364,7 @@ class RealtimePushService:
         level: str,
         title: str,
         body: str,
-        symbol: Optional[str] = None,
+        symbol: str | None = None,
     ) -> int:
         """推送告警"""
         msg = WSMessage(

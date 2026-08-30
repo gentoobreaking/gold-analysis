@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from scipy import stats
@@ -117,7 +117,7 @@ def calculate_var_cornish_fisher(
         return calculate_var_parametric(returns, confidence, portfolio_value)
 
     r = np.sort(arr)
-    n = len(r)
+    len(r)
     z = stats.norm.ppf(1 - confidence)
     s = stats.skew(arr)           # 偏度
     k = stats.kurtosis(arr)       # 峰度（超額峰度）

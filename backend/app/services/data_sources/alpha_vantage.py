@@ -4,18 +4,17 @@ Alpha Vantage API Adapter
 文檔: https://www.alphavantage.co/documentation/
 """
 
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import ClassVar
 
-from .base import BaseDataSource, HistoricalData, MarketData
 from ..config import get_api_key, get_api_settings
+from .base import BaseDataSource, HistoricalData, MarketData
 
 
 class AlphaVantageAdapter(BaseDataSource):
     """Alpha Vantage 數據源適配器"""
-    
     # 符號映射
-    SYMBOL_MAP = {
+    SYMBOL_MAP: ClassVar[dict[str, str]] = {
         "GC": "GOLD",           # 黃金期貨
         "SI": "SILVER",         # 白銀期貨
         "DX": "DXY",            # 美元指數
@@ -24,15 +23,15 @@ class AlphaVantageAdapter(BaseDataSource):
     }
     
     # 特殊函數映射
-    FUNCTION_MAP = {
+    FUNCTION_MAP: ClassVar[dict[str, str]] = {
         "GOLD": "function=TOP_25_GAINERS_LOSERS",  # 使用commodity作示例
-        "SILVER": "function=TOP_25_GAINERS_LOSERS",
+        "SI": "function=TOP_25_GAINERS_LOSERS",
         "DXY": "function=REAL_EFFECTIVE_EXCHANGE_RATE",
         "EUR/USD": "function=CURRENCY_EXCHANGE_RATE",
         "BTC/USD": "function=CURRENCY_EXCHANGE_RATE",
     }
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         settings = get_api_settings()
         super().__init__(
             api_key=api_key or get_api_key("alpha_vantage"),
@@ -103,20 +102,20 @@ class AlphaVantageAdapter(BaseDataSource):
         # 解析響應
         if "Note" in data:
             raise RuntimeError(
-                f"Alpha Vantage 速率限制已觸發。免費版限制 5 calls/min。"
+                "Alpha Vantage 速率限制已觸發。免費版限制 5 calls/min。"
                 "請稍後再試或升級至付費版。"
             )
         if "Error Message" in data:
             raise ValueError(f"Alpha Vantage API 錯誤: {data['Error Message']}")
         
         # 解析 GLOBAL_QUOTE
-        if "Global Quote" in data and data["Global Quote"]:
+        if data.get("Global Quote"):
             quote = data["Global Quote"]
             return MarketData(
                 symbol=symbol.upper(),
                 value=float(quote.get("05. price", 0)),
                 timestamp=datetime.fromisoformat(
-                    quote.get("07. latest trading day", datetime.now().date().isoformat())
+                    quote.get("07. latest trading day", datetime.now(timezone.utc).date().isoformat())
                 ),
                 currency="USD",
                 source=self.name,
@@ -133,18 +132,18 @@ class AlphaVantageAdapter(BaseDataSource):
             return MarketData(
                 symbol=symbol.upper(),
                 value=float(data["commodity"].get("price", 0)),
-                timestamp=datetime.now(),
+                timestamp=datetime.now(timezone.utc),
                 currency="USD",
                 source=self.name,
             )
         
         # 美元指數
-        if "data" in data and data["data"]:
+        if data.get("data"):
             item = data["data"][0]
             return MarketData(
                 symbol="DXY",
                 value=float(item.get("value", 0)),
-                timestamp=datetime.fromisoformat(item.get("date", datetime.now().isoformat())),
+                timestamp=datetime.fromisoformat(item.get("date", datetime.now(timezone.utc).isoformat())),
                 currency="USD",
                 source=self.name,
             )
@@ -165,18 +164,12 @@ class AlphaVantageAdapter(BaseDataSource):
             )
         
         # 確定時間序列函數
-        if symbol.upper() in ("GC", "GOLD"):
+        if symbol.upper() in ("GC", "GOLD") or symbol.upper() in ("SI", "SILVER"):
             function = "TIME_SERIES_DAILY_ADJUSTED"
-            market = "physical"
-        elif symbol.upper() in ("SI", "SILVER"):
-            function = "TIME_SERIES_DAILY_ADJUSTED"
-            market = "physical"
         elif symbol.upper() in ("DX", "DXY"):
             function = "DXY_SERIES"  # 假設的美元指數時間序列
-            market = "index"
         else:
             function = "TIME_SERIES_DAILY_ADJUSTED"
-            market = "stock"
         
         params = {
             "function": function,

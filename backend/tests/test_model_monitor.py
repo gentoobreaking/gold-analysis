@@ -48,9 +48,7 @@ class _FakeFE:
 
 @pytest.fixture
 def patched(monkeypatch):
-    monkeypatch.setattr(
-        "app.ml.model_monitor.ModelRegistry", lambda *a, **k: _FakeRegistry()
-    )
+    monkeypatch.setattr("app.ml.model_monitor.ModelRegistry", lambda *a, **k: _FakeRegistry())
     monkeypatch.setattr("app.ml.model_monitor.FeatureEngineer", _FakeFE)
     monkeypatch.setattr("app.ml.model_monitor.ModelEvaluator", _FakeEval)
     yield

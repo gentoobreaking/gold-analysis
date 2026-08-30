@@ -2,23 +2,21 @@
 Notification Service - 通知渠道管理
 支援郵件、推送通知
 """
-import logging
-import json
-import asyncio
-from typing import Optional
-from datetime import datetime
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
+import logging
+from datetime import datetime, timezone
 
 from app.models.alert import Alert
 from app.services.alert_service import AlertService
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationChannel(str):
     """通知渠道常量"""
+
     EMAIL = "email"
     PUSH = "push"
     WEBHOOK = "webhook"
@@ -43,7 +41,7 @@ class NotificationService:
                 "alert_type": alert.alert_type.value,
                 "asset": alert.asset,
                 "target_price": alert.target_price,
-                "triggered_at": datetime.utcnow().isoformat(),
+                "triggered_at": datetime.now(timezone.utc).isoformat(),
             },
         }
 
@@ -64,7 +62,7 @@ class NotificationService:
             direction = "突破" if alert.alert_type.value == "price_above" else "跌破"
             return (
                 f"{alert.asset} 已{direction} {alert.target_price} 美元\n"
-                f"時間: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
+                f"時間: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
             )
         elif alert.alert_type.value == "indicator_cross":
             return (
@@ -87,11 +85,12 @@ class NotificationService:
         to_email: str,
         subject: str,
         body: str,
-        html: Optional[str] = None,
+        html: str | None = None,
     ) -> bool:
         """發送郵件通知（SMTP，需配置 CORE_SMTP_*；未配置時記錄並跳過）"""
         try:
             from app.services.notify import _email_transport
+
             return await asyncio.to_thread(_email_transport, to_email, subject, body)
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
@@ -117,7 +116,7 @@ class NotificationService:
         user_id: int,
         title: str,
         body: str,
-        data: Optional[dict] = None,
+        data: dict | None = None,
     ) -> bool:
         """
         發送 Web Push 通知（需配置 Web Push VAPID 金鑰）
@@ -153,11 +152,12 @@ class NotificationService:
         self,
         webhook_url: str,
         payload: dict,
-        headers: Optional[dict] = None,
+        headers: dict | None = None,
     ) -> bool:
         """發送 Webhook 通知（Telegram/Discord/Slack 兼容；未配置時跳過）"""
         try:
             from app.services.notify import _webhook_transport
+
             return await asyncio.to_thread(_webhook_transport, webhook_url, payload)
         except Exception as e:
             logger.error(f"Failed to send webhook: {e}")
@@ -169,7 +169,7 @@ class NotificationService:
         self,
         user_id: int,
         user_email: str,
-        webhook_url: Optional[str] = None,
+        webhook_url: str | None = None,
         enable_email: bool = True,
         enable_push: bool = True,
         enable_webhook: bool = True,

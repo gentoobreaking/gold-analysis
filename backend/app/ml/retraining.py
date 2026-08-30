@@ -7,7 +7,7 @@ when no trigger is active, so it is safe to call on every cycle.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -32,17 +32,17 @@ class RetrainingOrchestrator:
         self.model_type = model_type
 
     @staticmethod
-    def _alert_triggers(alerts: List[str]) -> bool:
-        return any(a.startswith("data_drift") or a.startswith("accuracy_drop") for a in alerts)
+    def _alert_triggers(alerts: list[str]) -> bool:
+        return any(a.startswith(("data_drift", "accuracy_drop")) for a in alerts)
 
-    def needs_retrain(self, trigger: Optional[str] = None, alerts: Optional[List[str]] = None) -> bool:
+    def needs_retrain(self, trigger: str | None = None, alerts: list[str] | None = None) -> bool:
         if trigger == "schedule":
             return True
         if alerts is None and self.monitor is not None:
             alerts = self.monitor.snapshot().get("alerts", [])
         return self._alert_triggers(alerts or [])
 
-    def maybe_retrain(self, prices: pd.DataFrame, trigger: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def maybe_retrain(self, prices: pd.DataFrame, trigger: str | None = None) -> dict[str, Any] | None:
         if not self.needs_retrain(trigger=trigger):
             return None
         fe = FeatureEngineer()

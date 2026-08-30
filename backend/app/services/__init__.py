@@ -2,24 +2,24 @@
 Services Package
 """
 
+from .config import APISettings, get_api_key, get_api_settings
 from .data_sources import (
-    BaseDataSource,
-    HistoricalData,
-    MarketData,
     AlphaVantageAdapter,
+    BaseDataSource,
     FinnhubAdapter,
     FREDAdapter,
+    HistoricalData,
+    MarketData,
 )
-from .config import APISettings, get_api_settings, get_api_key
 
 __all__ = [
+    "APISettings",
+    "AlphaVantageAdapter",
     "BaseDataSource",
+    "FREDAdapter",
+    "FinnhubAdapter",
     "HistoricalData",
     "MarketData",
-    "AlphaVantageAdapter",
-    "FinnhubAdapter",
-    "FREDAdapter",
-    "APISettings",
-    "get_api_settings",
     "get_api_key",
+    "get_api_settings",
 ]

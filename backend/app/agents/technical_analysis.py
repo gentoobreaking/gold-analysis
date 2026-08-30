@@ -7,21 +7,21 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from ..agents.base import GoldAnalysisAgent
-from ..indicators.moving_averages import SMA, EMA, detect_crossover
-from ..indicators.rsi import RSI, RSIDivergence, generate_rsi_signals, detect_rsi_divergence
-from ..indicators.macd import MACD, determine_macd_trend, detect_macd_cross
-from ..indicators.bollinger import BollingerBands, detect_bollinger_squeeze
+from ..indicators.bollinger import BollingerBands
+from ..indicators.macd import MACD, detect_macd_cross, determine_macd_trend
+from ..indicators.moving_averages import SMA, detect_crossover
 from ..indicators.patterns import (
-    PatternDetector, SupportResistance,
-    TrendScorer, detect_patterns,
-    find_support_resistance, compute_trend_score,
+    compute_trend_score,
+    detect_patterns,
+    find_support_resistance,
 )
+from ..indicators.rsi import RSI, generate_rsi_signals
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         self.ma_short = SMA(period=20)
         self.ma_long = SMA(period=60)
 
-    async def analyze(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         執行技術分析
 
@@ -111,11 +111,11 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         slow_p = min(26, max(fast_p + 1, n - 3))
         sig_p  = min(9, max(3, n // 4))
         macd = MACD(fast_period=fast_p, slow_period=slow_p, signal_period=sig_p)
-        macd_line, signal_line, histogram = macd.compute(closes)
+        macd_line, signal_line, _histogram = macd.compute(closes)
         # Bollinger：週期 min(20, n-2)
         bb_period = min(20, max(5, n - 2))
         bb = BollingerBands(period=bb_period, std_mult=2.0)
-        upper, middle, lower, percent_b, bandwidth = bb.compute(closes)
+        upper, middle, lower, percent_b, _bandwidth = bb.compute(closes)
         # MA：短=min(20,n-2)，長=min(60,n-5)，至少差 3
         ma_s = min(20, max(3, n - 3))
         ma_l = min(60, max(ma_s + 3, n - 2))
@@ -130,11 +130,11 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         bb_middle = float(middle[-1]) if not np.isnan(middle[-1]) else None
         bb_lower = float(lower[-1]) if not np.isnan(lower[-1]) else None
         bb_percent_b = float(percent_b[-1]) if not np.isnan(percent_b[-1]) else None
-        close_current = float(closes[-1])
+        float(closes[-1])
 
         # ── 信號生成 ──────────────────────────────────────────────────────
 
-        signals: List[Dict[str, Any]] = []
+        signals: list[dict[str, Any]] = []
 
         # RSI 超買超賣
         rsi_signals = generate_rsi_signals(rsi_vals.tolist())
@@ -176,7 +176,7 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
 
         # ── 形態識別 ─────────────────────────────────────────────────────
 
-        pattern_signals: List[Dict[str, Any]] = []
+        pattern_signals: list[dict[str, Any]] = []
         if ohlc_df is not None:
             detected = detect_patterns(ohlc_df)
             for p in detected[-5:]:

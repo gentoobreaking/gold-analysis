@@ -1,6 +1,7 @@
 """
 LLM 宏觀敘事每日摘要路由 (T065)
 """
+
 from __future__ import annotations
 
 import logging

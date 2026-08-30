@@ -3,8 +3,8 @@ API Configuration & Secrets Management
 API 密鑰管理：從環境變數讀取，不硬編碼
 """
 
-import os
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 
 
@@ -39,7 +39,7 @@ class APISettings(BaseSettings):
         env_prefix = ""
 
 
-@lru_cache()
+@lru_cache
 def get_api_settings() -> APISettings:
     """取得 API 配置（單例，緩存）"""
     return APISettings()

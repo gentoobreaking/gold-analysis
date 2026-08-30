@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class RiskCheckResult:
     level: RiskLevel
     rule_name: str
     message: str
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     
     @property
     def is_blocked(self) -> bool:
@@ -38,7 +38,7 @@ class RiskCheckResult:
     def __bool__(self) -> bool:
         return self.level != RiskLevel.BLOCK
     
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "level":    self.level.value,
             "rule_name": self.rule_name,
@@ -91,7 +91,7 @@ class RiskRule:
     name: str = "base_rule"
     description: str = ""
     
-    def __init__(self, config: Optional[RiskRuleConfig] = None):
+    def __init__(self, config: RiskRuleConfig | None = None):
         self.config = config or RiskRuleConfig()
     
     def check(
@@ -100,7 +100,7 @@ class RiskRule:
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
+        existing_orders: list[Any],
         **kwargs,
     ) -> RiskCheckResult:
         """
@@ -118,7 +118,7 @@ class RiskRule:
         """
         raise NotImplementedError
     
-    def _warn(self, message: str, details: Optional[Dict] = None) -> RiskCheckResult:
+    def _warn(self, message: str, details: dict | None = None) -> RiskCheckResult:
         return RiskCheckResult(
             level=RiskLevel.WARNING,
             rule_name=self.name,
@@ -126,7 +126,7 @@ class RiskRule:
             details=details or {},
         )
     
-    def _block(self, message: str, details: Optional[Dict] = None) -> RiskCheckResult:
+    def _block(self, message: str, details: dict | None = None) -> RiskCheckResult:
         return RiskCheckResult(
             level=RiskLevel.BLOCK,
             rule_name=self.name,
@@ -154,7 +154,7 @@ class MaxPositionValueRule(RiskRule):
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
+        existing_orders: list[Any],
         **kwargs,
     ) -> RiskCheckResult:
         if position is None:
@@ -185,7 +185,7 @@ class MaxOrderSizeRule(RiskRule):
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
+        existing_orders: list[Any],
         **kwargs,
     ) -> RiskCheckResult:
         reasons = []
@@ -220,7 +220,7 @@ class DailyLossLimitRule(RiskRule):
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
+        existing_orders: list[Any],
         **kwargs,
     ) -> RiskCheckResult:
         today_loss = account.realized_pnl_today
@@ -260,9 +260,9 @@ class StopLossRule(RiskRule):
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
-        stop_loss_price: Optional[float] = None,
-        entry_price: Optional[float] = None,
+        existing_orders: list[Any],
+        stop_loss_price: float | None = None,
+        entry_price: float | None = None,
     ) -> RiskCheckResult:
         if not self.config.stop_loss_required:
             return self._pass()
@@ -299,7 +299,7 @@ class BuyingPowerRule(RiskRule):
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
+        existing_orders: list[Any],
         **kwargs,
     ) -> RiskCheckResult:
         # 計算待成交訂單佔用的資金
@@ -321,9 +321,9 @@ class TradingFrequencyRule(RiskRule):
     name = "trading_frequency"
     description = "控制交易頻率，防止過度交易"
     
-    def __init__(self, config: Optional[RiskRuleConfig] = None):
+    def __init__(self, config: RiskRuleConfig | None = None):
         super().__init__(config)
-        self._order_times: List[datetime] = []
+        self._order_times: list[datetime] = []
     
     def check(
         self,
@@ -331,10 +331,10 @@ class TradingFrequencyRule(RiskRule):
         order_quantity: float,
         position: Any,
         account: Any,
-        existing_orders: List[Any],
+        existing_orders: list[Any],
         **kwargs,
     ) -> RiskCheckResult:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         minute_orders = sum(1 for t in self._order_times if (now - t).seconds < 60)
         
         if minute_orders >= self.config.max_orders_per_minute:
@@ -353,7 +353,7 @@ class TradingFrequencyRule(RiskRule):
         # 記錄本次訂單時間
         self._order_times.append(now)
         # 清理舊記錄
-        cutoff = datetime.utcnow()
+        cutoff = datetime.now(timezone.utc)
         self._order_times = [
             t for t in self._order_times
             if (cutoff - t).total_seconds() < 3600
@@ -361,9 +361,9 @@ class TradingFrequencyRule(RiskRule):
         
         return self._pass()
     
-    def record_order(self, timestamp: Optional[datetime] = None) -> None:
+    def record_order(self, timestamp: datetime | None = None) -> None:
         """記錄已成交訂單時間"""
-        self._order_times.append(timestamp or datetime.utcnow())
+        self._order_times.append(timestamp or datetime.now(timezone.utc))
 
 
 # ─── 風控引擎 ───────────────────────────────────────────────────────────────
@@ -380,9 +380,9 @@ class RiskRuleEngine:
             raise RiskViolationError(result.message)
     """
     
-    def __init__(self, config: Optional[RiskRuleConfig] = None):
+    def __init__(self, config: RiskRuleConfig | None = None):
         self.config = config or RiskRuleConfig()
-        self.rules: List[RiskRule] = []
+        self.rules: list[RiskRule] = []
         self.logger = logging.getLogger(__name__)
         self._register_default_rules()
     
@@ -394,7 +394,7 @@ class RiskRuleEngine:
         self.add_rule(DailyLossLimitRule(self.config))
         self.add_rule(TradingFrequencyRule(self.config))
     
-    def add_rule(self, rule: RiskRule) -> "RiskRuleEngine":
+    def add_rule(self, rule: RiskRule) -> RiskRuleEngine:
         """添加風控規則"""
         self.rules.append(rule)
         self.logger.info(f"已添加風控規則: {rule.name}")
@@ -411,11 +411,11 @@ class RiskRuleEngine:
         symbol: str,
         quantity: float,
         price: float,
-        position: Optional[Any] = None,
-        account: Optional[Any] = None,
-        existing_orders: Optional[List[Any]] = None,
+        position: Any | None = None,
+        account: Any | None = None,
+        existing_orders: list[Any] | None = None,
         **kwargs,
-    ) -> Tuple[bool, List[RiskCheckResult]]:
+    ) -> tuple[bool, list[RiskCheckResult]]:
         """
         執行所有風控規則檢查
         
@@ -436,7 +436,7 @@ class RiskRuleEngine:
         existing_orders = existing_orders or []
         order_value = quantity * price
         
-        all_results: List[RiskCheckResult] = []
+        all_results: list[RiskCheckResult] = []
         
         for rule in self.rules:
             try:
@@ -474,8 +474,8 @@ class RiskRuleEngine:
     
     def get_summary(
         self,
-        results: List[RiskCheckResult],
-    ) -> Dict[str, Any]:
+        results: list[RiskCheckResult],
+    ) -> dict[str, Any]:
         """
         生成風控結果摘要
         

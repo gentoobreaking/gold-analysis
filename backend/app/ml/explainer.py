@@ -7,6 +7,7 @@ Decision explainability - SHAP / feature-importance contributions.
 
 與 T056（告警帶理由）、T065（LLM 敘事）形成「為什麼」敘事鏈。
 """
+
 from __future__ import annotations
 
 import logging
@@ -79,7 +80,9 @@ def explain_ml_decision(
     feature_names = list(feature_names)
     X = _to_2d_row(X_row)
     if X.shape[1] != len(feature_names):
-        raise ValueError(f"特徵數不符: X 有 {X.shape[1]} 列，feature_names 有 {len(feature_names)} 個")
+        raise ValueError(
+            f"特徵數不符: X 有 {X.shape[1]} 列，feature_names 有 {len(feature_names)} 個"
+        )
 
     contributions: dict[str, float] = {}
     method = "feature_importance"

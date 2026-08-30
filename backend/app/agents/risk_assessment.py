@@ -7,29 +7,27 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 import numpy as np
 
 from ..agents.base import GoldAnalysisAgent
 from ..risk.metrics import (
-    calculate_volatility,
-    calculate_var_historical,
-    calculate_var_parametric,
-    calculate_var_cornish_fisher,
+    calculate_calmar_ratio,
     calculate_cvar,
+    calculate_max_drawdown,
     calculate_sharpe_ratio,
     calculate_sortino_ratio,
-    calculate_max_drawdown,
-    calculate_calmar_ratio,
+    calculate_var_cornish_fisher,
+    calculate_var_historical,
+    calculate_var_parametric,
+    calculate_volatility,
 )
 from ..risk.position import (
-    RiskLevel,
-    StopLossStrategy,
     PositionSizer,
-    calculate_stop_loss,
-    calculate_position_size,
+    RiskLevel,
     assess_risk_level,
+    calculate_stop_loss,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +58,7 @@ class RiskAssessmentAgent(GoldAnalysisAgent):
             max_tokens=max_tokens,
         )
 
-    async def analyze(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         執行風險評估
 
@@ -107,7 +105,7 @@ class RiskAssessmentAgent(GoldAnalysisAgent):
         cvar_95 = calculate_cvar(returns.tolist(), confidence=0.95, portfolio_value=capital)
         sharpe = calculate_sharpe_ratio(returns.tolist())
         sortino = calculate_sortino_ratio(returns.tolist())
-        max_dd, dd_start, dd_end = calculate_max_drawdown(prices.tolist())
+        max_dd, _dd_start, _dd_end = calculate_max_drawdown(prices.tolist())
         calmar = calculate_calmar_ratio(returns.tolist(), prices.tolist())
 
         # ── 止損 ──────────────────────────────────────────────────────

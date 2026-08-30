@@ -6,7 +6,6 @@ Redis connection, and other core infrastructure.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,18 +46,18 @@ class CoreSettings(BaseSettings):
     notify_enabled: bool = Field(
         default=False, description="Enable alert notifications (email/webhook)."
     )
-    smtp_host: Optional[str] = Field(default=None, description="SMTP host for email alerts.")
+    smtp_host: str | None = Field(default=None, description="SMTP host for email alerts.")
     smtp_port: int = Field(default=587, description="SMTP port.")
-    smtp_user: Optional[str] = Field(default=None)
-    smtp_pass: Optional[str] = Field(default=None)
-    smtp_from: Optional[str] = Field(default=None)
-    notify_email_to: Optional[str] = Field(default=None, description="Recipient for email alerts.")
-    notify_webhook_url: Optional[str] = Field(
+    smtp_user: str | None = Field(default=None)
+    smtp_pass: str | None = Field(default=None)
+    smtp_from: str | None = Field(default=None)
+    notify_email_to: str | None = Field(default=None, description="Recipient for email alerts.")
+    notify_webhook_url: str | None = Field(
         default=None, description="Webhook URL (Telegram/Discord/Slack compatible)."
     )
 
     # Webhook HMAC secret (T067)
-    webhook_secret: Optional[str] = Field(
+    webhook_secret: str | None = Field(
         default=None,
         description="Shared secret for HMAC-SHA256 webhook signature verification.",
     )
@@ -68,7 +67,7 @@ class CoreSettings(BaseSettings):
         default=False,
         description="Enable LLM macro-digest generation. When False the pipeline degrades gracefully.",
     )
-    llm_api_key: Optional[str] = Field(default=None, description="LLM provider API key.")
+    llm_api_key: str | None = Field(default=None, description="LLM provider API key.")
     llm_base_url: str = Field(
         default="https://api.openai.com/v1",
         description="OpenAI-compatible base URL (e.g. OpenAI, OpenRouter, local vLLM).",
@@ -83,7 +82,7 @@ class CoreSettings(BaseSettings):
     )
 
 
-@lru_cache()
+@lru_cache
 def get_core_settings() -> CoreSettings:
     """Get cached core settings instance."""
     return CoreSettings()

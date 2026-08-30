@@ -1,25 +1,22 @@
 """
 Alert routes - price alerts and notifications
 """
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-
-from app.models.user import User
-from app.models.alert import Alert
-from app.db.config import get_db_session
+from app.api.middleware.auth import get_current_active_user
 from app.api.schemas.alerts import (
+    AlertListResponse,
+    AlertResponse,
+    AlertTriggeredEvent,
     CreateAlertRequest,
     UpdateAlertRequest,
-    AlertResponse,
-    AlertListResponse,
-    AlertTriggeredEvent,
 )
-from app.api.middleware.auth import get_current_active_user
+from app.db.config import get_db_session
+from app.models.alert import Alert
+from app.models.user import User
 from app.services.alert_service import AlertService
-
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -29,8 +26,8 @@ router = APIRouter()
 @router.post("/", response_model=AlertResponse, status_code=status.HTTP_201_CREATED)
 async def create_alert(
     request: CreateAlertRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> AlertResponse:
     """
     創建價格告警。
@@ -52,14 +49,13 @@ async def create_alert(
     return AlertResponse.model_validate(alert)
 
 
-@router.get("/", response_model=AlertListResponse)
 async def list_alerts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    is_active: Optional[bool] = Query(None, description="是否啟用"),
-    asset: Optional[str] = Query(None, description="資產符號"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    is_active: bool | None = Query(None, description="是否啟用"),
+    asset: str | None = Query(None, description="資產符號"),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> AlertListResponse:
     """
     列出用戶的告警。
@@ -99,8 +95,8 @@ async def list_alerts(
 @router.get("/{alert_id}", response_model=AlertResponse)
 async def get_alert(
     alert_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> AlertResponse:
     """獲取告警詳情。"""
     result = await db.execute(
@@ -124,8 +120,8 @@ async def get_alert(
 async def update_alert(
     alert_id: int,
     request: UpdateAlertRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> AlertResponse:
     """更新告警。"""
     result = await db.execute(
@@ -155,8 +151,8 @@ async def update_alert(
 @router.delete("/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_alert(
     alert_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> None:
     """刪除告警。"""
     result = await db.execute(
@@ -180,8 +176,8 @@ async def delete_alert(
 @router.post("/{alert_id}/toggle", response_model=AlertResponse)
 async def toggle_alert(
     alert_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> AlertResponse:
     """切換告警啟用/停用狀態。"""
     result = await db.execute(
@@ -207,8 +203,8 @@ async def toggle_alert(
 
 @router.get("/check/triggered")
 async def check_triggered_alerts(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> list[AlertTriggeredEvent]:
     """檢查並返回所有觸發的告警。"""
     alert_service = AlertService(db)
@@ -220,8 +216,8 @@ async def check_triggered_alerts(
 
 @router.delete("/clear-triggered", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_triggered_alerts(
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> None:
     """清除所有已觸發的告警（停用它們）。"""
     alert_service = AlertService(db)

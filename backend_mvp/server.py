@@ -5,6 +5,7 @@
 Gold Analysis MVP - 極簡版後端
 直接串接 gold_monitor.py 的數據源，快速展示 Dashboard
 """
+
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ from pydantic import BaseModel
 HISTORY_FILE = Path("/Users/claw/.qclaw/gold_price_history.json")
 CONFIG_FILE = Path("/Users/claw/.qclaw/gold_monitor_config.json")
 
+
 # ── Pydantic Models ───────────────────────────────────────────────────────────
 class PriceResponse(BaseModel):
     sell: float
@@ -28,6 +30,7 @@ class PriceResponse(BaseModel):
     change: float | None = None
     change_pct: float | None = None
 
+
 class DecisionResponse(BaseModel):
     action: str
     confidence: float
@@ -36,14 +39,17 @@ class DecisionResponse(BaseModel):
     price: float
     timestamp: str
 
+
 class HistoryPoint(BaseModel):
     timestamp: str
     sell: float
     buy: float
 
+
 class HistoryResponse(BaseModel):
     data: list[HistoryPoint]
     count: int
+
 
 # ── 核心函數 ─────────────────────────────────────────────────────────────────
 def load_history():
@@ -52,17 +58,19 @@ def load_history():
             return json.load(f)
     return {"daily": {}, "intraday": {}}
 
+
 def load_config():
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE) as f:
             return json.load(f)
     return {}
 
+
 def _get_latest_from_intraday(intraday: dict):
     """從 intraday 列表中找最新一筆（intraday 值是 list）"""
     today_key = datetime.now().strftime("%Y-%m-%d")
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    
+
     for key in [today_key, yesterday]:
         if key in intraday and isinstance(intraday[key], list):
             data_list = intraday[key]
@@ -72,11 +80,12 @@ def _get_latest_from_intraday(intraday: dict):
                 return last
     return None
 
+
 def get_latest_price():
     history = load_history()
     intraday = history.get("intraday", {})
     daily = history.get("daily", {})
-    
+
     latest = _get_latest_from_intraday(intraday)
     if not latest:
         # Fallback: 用 daily
@@ -85,11 +94,11 @@ def get_latest_price():
             latest = daily[dates[-1]]
         else:
             return None
-    
+
     sell = float(latest.get("sell", 0) or latest.get("price", 0))
     buy = float(latest.get("buy", 0) or latest.get("price", 0))
     ts = latest.get("timestamp", datetime.now().isoformat())
-    
+
     # 計算變動（相對於昨日收盤）
     dates = sorted(daily.keys())
     change = 0.0
@@ -98,7 +107,7 @@ def get_latest_price():
         yesterday_close = float(daily[dates[-2]]["sell"])
         change = sell - yesterday_close
         change_pct = (change / yesterday_close * 100) if yesterday_close else 0
-    
+
     return {
         "sell": sell,
         "buy": buy,
@@ -109,23 +118,28 @@ def get_latest_price():
         "change_pct": round(change_pct, 2),
     }
 
+
 def get_decision():
     price_data = get_latest_price()
     if not price_data:
         return None
-    
+
     sell = price_data["sell"]
     config = load_config()
     buy_threshold = config.get("buy_threshold", 4500)
     sell_threshold = config.get("sell_threshold", 5000)
-    
+
     if sell <= buy_threshold:
         action, signal, reason = "buy", "💰 買入信號", [f"價格 {sell} ≤ 買入門檻 {buy_threshold}"]
     elif sell >= sell_threshold:
         action, signal, reason = "sell", "⚠️ 賣出信號", [f"價格 {sell} ≥ 賣出門檻 {sell_threshold}"]
     else:
-        action, signal, reason = "hold", "➡️ 觀望", [f"價格在區間內（{buy_threshold} - {sell_threshold}）"]
-    
+        action, signal, reason = (
+            "hold",
+            "➡️ 觀望",
+            [f"價格在區間內（{buy_threshold} - {sell_threshold}）"],
+        )
+
     return {
         "action": action,
         "confidence": 0.75,
@@ -135,29 +149,33 @@ def get_decision():
         "timestamp": price_data["timestamp"],
     }
 
+
 def get_history(days: int = 7):
     history = load_history()
     intraday = history.get("intraday", {})
     daily = history.get("daily", {})
     cutoff = datetime.now() - timedelta(days=days)
     all_data = []
-    
+
     for key, value in intraday.items():
         if isinstance(value, list):
             for item in value:
                 try:
                     dt = datetime.fromisoformat(item["timestamp"])
                     if dt >= cutoff:
-                        all_data.append(HistoryPoint(
-                            timestamp=item["timestamp"],
-                            sell=float(item.get("sell", 0) or item.get("price", 0)),
-                            buy=float(item.get("buy", 0) or item.get("price", 0)),
-                        ))
+                        all_data.append(
+                            HistoryPoint(
+                                timestamp=item["timestamp"],
+                                sell=float(item.get("sell", 0) or item.get("price", 0)),
+                                buy=float(item.get("buy", 0) or item.get("price", 0)),
+                            )
+                        )
                 except:
                     pass
-    
+
     all_data.sort(key=lambda x: x.timestamp)
     return {"data": all_data, "count": len(all_data)}
+
 
 # ── FastAPI App ────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -173,13 +191,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 async def root():
     return {"name": "Gold Analysis MVP", "version": "0.1.0", "status": "running"}
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
 
 @app.get("/api/prices/current", response_model=PriceResponse)
 async def current_price():
@@ -188,9 +209,11 @@ async def current_price():
         raise ValueError("無法取得價格數據")
     return PriceResponse(**price)
 
+
 @app.get("/api/prices/history", response_model=HistoryResponse)
 async def price_history(days: int = 7):
     return HistoryResponse(**get_history(days))
+
 
 @app.get("/api/decisions/recommend", response_model=DecisionResponse)
 async def recommend():
@@ -198,6 +221,7 @@ async def recommend():
     if not decision:
         raise ValueError("無法產生決策")
     return DecisionResponse(**decision)
+
 
 if __name__ == "__main__":
     uvicorn.run("server:app", host="0.0.0.0", port=8765, reload=False)

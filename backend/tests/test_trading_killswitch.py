@@ -84,9 +84,7 @@ def test_daily_loss_breaker_blocks(monkeypatch):
 def test_live_submits_when_enabled(monkeypatch):
     _set_settings(monkeypatch, trading_enabled=True, trading_dry_run=False)
     client = _make_client()
-    account = SimpleNamespace(
-        total_equity=100000.0, buying_power=100000.0, realized_pnl_today=0.0
-    )
+    account = SimpleNamespace(total_equity=100000.0, buying_power=100000.0, realized_pnl_today=0.0)
 
     result = ex.execute_decision(_Decision("BUY"), client=client, account=account)
 

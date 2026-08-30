@@ -5,24 +5,26 @@ core's :class:`OrderExecutor`, applies the global trading kill-switch (T055) and
 pre-trade risk gate, then appends the outcome to the :class:`TradeLogger`.
 Reuses core's existing executor and exchange client -- no advanced-only code path.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
+
+from app.core.config import get_core_settings
 
 from .order_executor import OrderExecutor
-from .order_types import OrderSide, OrderType
-from .trade_logger import TradeLogger
+from .order_types import OrderSide
 from .risk_rules import RiskRuleEngine
-from app.core.config import get_core_settings
+from .trade_logger import TradeLogger
 
 
 def _pre_trade_risk_check(
     symbol: str,
     side: str,
     quantity: float,
-    price: Optional[float],
+    price: float | None,
     account: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run circuit-breaker rules; return pass/fail summary for the pre-trade gate."""
     engine = RiskRuleEngine()
     passed, results = engine.check(
@@ -39,11 +41,11 @@ def execute_decision(
     decision: Any,
     symbol: str = "XAUUSD",
     client: Any = None,
-    logger: Optional[TradeLogger] = None,
+    logger: TradeLogger | None = None,
     quantity: float = 1.0,
-    price: Optional[float] = None,
+    price: float | None = None,
     account: Any = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute ``decision`` via core's OrderExecutor; log the result.
 
     Safety (T055):
@@ -109,13 +111,16 @@ def execute_decision(
             logger.log(event)
         try:
             from app.services.notify import notify_alert
-            notify_alert({
-                "title": f"[RISK BLOCK] {symbol} {action}",
-                "body": f"Pre-trade risk gate blocked order: {risk['summary']['blocked_rules']}",
-                "level": "critical",
-                "source": "execution",
-            })
-        except Exception:  # noqa: BLE001
+
+            notify_alert(
+                {
+                    "title": f"[RISK BLOCK] {symbol} {action}",
+                    "body": f"Pre-trade risk gate blocked order: {risk['summary']['blocked_rules']}",
+                    "level": "critical",
+                    "source": "execution",
+                }
+            )
+        except Exception:  # noqa: BLE001,S110
             pass
         return event
 

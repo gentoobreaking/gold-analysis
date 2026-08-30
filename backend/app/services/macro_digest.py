@@ -9,6 +9,7 @@ LLM 宏觀敘事每日摘要管線 (T065)。
   5. 存檔（JSON + Markdown）並可推送（T056 notify）
   6. LLM 不可用時優雅降級：產出一段以真實資料為基礎的結構化摘要，不崩潰
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,9 @@ from app.tools.data_tools import DataTools
 
 logger = logging.getLogger(__name__)
 
-DIGEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "digests")
+DIGEST_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "digests"
+)
 LATEST_JSON = os.path.join(DIGEST_DIR, "macro_digest_latest.json")
 
 
@@ -37,9 +40,7 @@ async def _build_context() -> dict[str, Any]:
         last = closes[-1]
         prev = closes[-2]
         chg = (last / prev - 1) * 100 if prev else 0.0
-        price_context = (
-            f"近期黃金收盤價最新 {last:.2f}，前筆 {prev:.2f}，單期變動 {chg:+.2f}%。"
-        )
+        price_context = f"近期黃金收盤價最新 {last:.2f}，前筆 {prev:.2f}，單期變動 {chg:+.2f}%。"
     return {
         "sentiment": sentiment,
         "price_context": price_context,
@@ -100,10 +101,7 @@ def _fallback_digest(ctx: dict[str, Any]) -> dict[str, Any]:
             "（LLM 敘事服務未啟用或暫時無法連線，此為基礎資料摘要。）"
         )
     else:
-        body = (
-            "市場情緒資料暫時無法取得，請稍後重試或檢查資料源連線。\n\n"
-            f"{ctx['price_context']}"
-        )
+        body = f"市場情緒資料暫時無法取得，請稍後重試或檢查資料源連線。\n\n{ctx['price_context']}"
     markdown = _markdown_template(ctx, body)
     return {
         "generated_at": ctx["generated_at"],

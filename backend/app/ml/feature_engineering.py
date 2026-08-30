@@ -6,9 +6,7 @@ Feature Engineering Module - 特徵工程模組
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -47,7 +45,7 @@ class FeatureEngineer:
     LABEL_SELL = -1
     LABEL_HOLD = 0
     
-    def __init__(self, config: Optional[FeatureConfig] = None):
+    def __init__(self, config: FeatureConfig | None = None):
         """
         初始化特徵工程師
         
@@ -55,7 +53,7 @@ class FeatureEngineer:
             config: 特徵工程配置，預設使用合理預設值
         """
         self.config = config or FeatureConfig()
-        self.feature_names: List[str] = []
+        self.feature_names: list[str] = []
         self._fitted = False
     
     # ─── 公開 API ─────────────────────────────────────────────────────────────
@@ -119,11 +117,11 @@ class FeatureEngineer:
         
         return df.dropna()
     
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         """返回特徵名稱列表"""
         return self.feature_names.copy()
     
-    def get_latest_features(self, df: pd.DataFrame) -> Dict[str, float]:
+    def get_latest_features(self, df: pd.DataFrame) -> dict[str, float]:
         """
         獲取最新一行數據的特徵值（用於即時預測）
         
@@ -209,7 +207,6 @@ class FeatureEngineer:
     
     def _add_momentum_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """添加動量特徵"""
-        cfg = self.config
         
         # 動量震盪指標
         for period in [5, 10, 20]:
@@ -233,7 +230,6 @@ class FeatureEngineer:
     
     def _add_volatility_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """添加波動性特徵"""
-        cfg = self.config
         
         # 歷史波動率（使用日回報率標準差）
         for period in [5, 10, 20]:
@@ -252,7 +248,6 @@ class FeatureEngineer:
     
     def _add_pattern_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """添加價格形態特徵"""
-        cfg = self.config
         
         # 價格相對於近期高低點
         df["price_vs_20d_high"] = (df["close"] - df["close"].rolling(20).max()) / df["close"]
@@ -347,7 +342,7 @@ class FeatureEngineer:
         fast: int = 12,
         slow: int = 26,
         signal: int = 9
-    ) -> Dict[str, pd.Series]:
+    ) -> dict[str, pd.Series]:
         """計算 MACD"""
         ema_fast = series.ewm(span=fast, adjust=False).mean()
         ema_slow = series.ewm(span=slow, adjust=False).mean()
@@ -364,7 +359,7 @@ class FeatureEngineer:
         series: pd.Series,
         period: int = 20,
         num_std: float = 2.0
-    ) -> Dict[str, pd.Series]:
+    ) -> dict[str, pd.Series]:
         """計算布林帶"""
         middle = series.rolling(window=period).mean()
         std = series.rolling(window=period).std()
@@ -399,7 +394,7 @@ class FeatureEngineer:
         df: pd.DataFrame,
         k_period: int = 14,
         d_period: int = 3
-    ) -> Dict[str, pd.Series]:
+    ) -> dict[str, pd.Series]:
         """計算 Stochastic（只用收盤價，以 rolling max/min 代替高低點）"""
         close = df["close"]
         lowest_low = close.rolling(window=k_period).min()
@@ -411,7 +406,7 @@ class FeatureEngineer:
     # ─── 驗證工具 ─────────────────────────────────────────────────────────────
     
     @staticmethod
-    def _validate_required_columns(df: pd.DataFrame, required: List[str]) -> None:
+    def _validate_required_columns(df: pd.DataFrame, required: list[str]) -> None:
         """驗證必需列是否存在"""
         missing = [col for col in required if col not in df.columns]
         if missing:

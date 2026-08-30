@@ -1,6 +1,7 @@
 """
 投資組合級風險路由 (T064) - 相關性矩陣 / 組合 VaR-CVaR / 因子曝險
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,9 +31,7 @@ async def portfolio_risk(request: PortfolioRiskRequest) -> PortfolioRiskResponse
     計算投資組合級風險：跨資產相關性矩陣、組合 VaR/CVaR（考量相關性）、因子曝險。
     """
     if len(request.weights) != len(request.returns):
-        raise HTTPException(
-            status_code=400, detail="weights 與 returns 資產數量必須一致"
-        )
+        raise HTTPException(status_code=400, detail="weights 與 returns 資產數量必須一致")
 
     corr = correlation_matrix(request.returns)
     risk = portfolio_var_from_returns(

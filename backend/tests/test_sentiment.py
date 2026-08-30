@@ -5,6 +5,7 @@ T056 - get_sentiment_data 不再回傳假情緒
 - 真實來源可用時回傳 available=True 與真實 fear_greed_index
 - 來源失敗時回傳 available=False（而非假 "Greed"）
 """
+
 import asyncio
 import json
 import os

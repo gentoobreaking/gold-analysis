@@ -2,23 +2,18 @@
 Report Service - 報告生成系統
 支援日報/周報/月報自動生成，PDF + Excel 導出
 """
-import logging
 import io
-import json
-from typing import Optional
-from datetime import datetime, timedelta, date
-from dataclasses import dataclass, asdict
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.decision import Decision, DecisionType, DecisionSource
-from app.models.portfolio import Portfolio
-from app.models.portfolio_holding import PortfolioHolding
 from app.models.alert import Alert
+from app.models.decision import Decision
+from app.models.portfolio import Portfolio
 from app.services.backtest_service import BacktestService
-from app.analysis.performance import PerformanceAnalyzer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +94,7 @@ class ReportService:
         self,
         user_id: int,
         report_type: ReportType,
-        reference_date: Optional[datetime] = None,
+        reference_date: datetime | None = None,
     ) -> ReportData:
         """
         收集報告所需數據
@@ -112,7 +107,7 @@ class ReportService:
         Returns:
             ReportData
         """
-        ref = reference_date or datetime.utcnow()
+        ref = reference_date or datetime.now(timezone.utc)
 
         if report_type == ReportType.DAILY:
             start = ref.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -174,7 +169,7 @@ class ReportService:
             decisions=decision_stats,
             portfolio_performance=portfolio_perf,
             alerts=alert_stats,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
         )
 
     def _summarize_decisions(self, decisions: list[Decision]) -> list[dict]:
@@ -264,8 +259,8 @@ class ReportService:
             "",
             "## 📊 市場概覽",
             "",
-            f"| 品種 | 數值 |",
-            f"|------|------|",
+            "| 品種 | 數值 |",
+            "|------|------|",
         ]
 
         for key, val in data.market_overview.items():
@@ -295,7 +290,7 @@ class ReportService:
             lines.append(f"- 已觸發: {data.alerts['triggered']}")
             lines.append(f"- 活躍: {data.alerts['active']}")
 
-        lines.extend(["", "---", f"*報告自動生成於 {datetime.utcnow().isoformat()}*"])
+        lines.extend(["", "---", f"*報告自動生成於 {datetime.now(timezone.utc).isoformat()}*"])
         return "\n".join(lines)
 
     # ── PDF 導出 ─────────────────────────────────────────────────────────────
@@ -304,7 +299,7 @@ class ReportService:
         self,
         user_id: int,
         report_type: ReportType,
-        reference_date: Optional[datetime] = None,
+        reference_date: datetime | None = None,
     ) -> bytes:
         """
         生成 PDF 報告
@@ -315,8 +310,11 @@ class ReportService:
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import getSampleStyleSheet
             from reportlab.lib.units import cm
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-            from reportlab.lib import colors
+            from reportlab.platypus import (
+                Paragraph,
+                SimpleDocTemplate,
+                Spacer,
+            )
         except ImportError:
             logger.error("reportlab not installed, cannot generate PDF")
             return b"ERROR: reportlab not installed"
@@ -361,7 +359,7 @@ class ReportService:
         self,
         user_id: int,
         report_type: ReportType,
-        reference_date: Optional[datetime] = None,
+        reference_date: datetime | None = None,
     ) -> bytes:
         """
         生成 Excel 報告
@@ -370,7 +368,7 @@ class ReportService:
         """
         try:
             import openpyxl
-            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.styles import Font, PatternFill
         except ImportError:
             logger.error("openpyxl not installed, cannot generate Excel")
             return b"ERROR: openpyxl not installed"
@@ -424,8 +422,8 @@ class ReportService:
             ])
 
         # 格式化
-        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF")
+        PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        Font(bold=True, color="FFFFFF")
         for ws in [ws1, ws2]:
             ws.column_dimensions["A"].width = 20
             ws.column_dimensions["B"].width = 30
@@ -444,7 +442,7 @@ class ReportService:
         user_id: int,
         report_type: ReportType,
         output_format: str = "markdown",
-        reference_date: Optional[datetime] = None,
+        reference_date: datetime | None = None,
     ) -> bytes | str:
         """
         統一報告生成入口

@@ -4,8 +4,10 @@ Outlier Detector - 異常值檢測器
 """
 
 import logging
-from typing import List, Dict, Any, Tuple, Optional
+from typing import Any
+
 import numpy as np
+
 from ..validators.config import get_cleaning_settings
 
 logger = logging.getLogger(__name__)
@@ -16,14 +18,14 @@ class OutlierDetector:
     
     def __init__(self):
         self.settings = get_cleaning_settings()
-        self._last_stats: Dict[str, Any] = {}
+        self._last_stats: dict[str, Any] = {}
     
     def detect_zscore(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price",
-        threshold: Optional[float] = None
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        threshold: float | None = None
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         使用 Z-score 方法檢測異常值
         
@@ -108,12 +110,12 @@ class OutlierDetector:
     
     def detect_iqr(
         self,
-        data: List[Dict[str, Any]],
-        value_field: Optional[str] = None,
-        multiplier: Optional[float] = None,
-        field: Optional[str] = None,
+        data: list[dict[str, Any]],
+        value_field: str | None = None,
+        multiplier: float | None = None,
+        field: str | None = None,
         return_indices: bool = False,
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         使用 IQR (四分位距) 方法檢測異常值
         
@@ -152,7 +154,7 @@ class OutlierDetector:
 
         # 標記異常值 / 收集索引
         outlier_count = 0
-        outlier_indices: List[int] = []
+        outlier_indices: list[int] = []
         result = []
 
         for i, item in enumerate(data):
@@ -201,9 +203,9 @@ class OutlierDetector:
     
     def detect_combined(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price"
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         組合檢測：同時使用 Z-score 和 IQR
         
@@ -255,10 +257,10 @@ class OutlierDetector:
     
     def get_outliers_only(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         value_field: str = "price",
         method: str = "zscore"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         僅返回異常值列表
         
@@ -283,9 +285,9 @@ class OutlierDetector:
 
     def remove_outliers(
         self,
-        data: List[Dict[str, Any]],
-        outlier_indices: List[int]
-    ) -> List[Dict[str, Any]]:
+        data: list[dict[str, Any]],
+        outlier_indices: list[int]
+    ) -> list[dict[str, Any]]:
         """
         移除指定的異常值記錄
         
@@ -301,13 +303,13 @@ class OutlierDetector:
         self._last_stats["removed_count"] = len(outlier_set)
         return result
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """取得最近一次操作的統計信息"""
         return self._last_stats.copy()
 
 
 # 預設實例
-_default_detector: Optional[OutlierDetector] = None
+_default_detector: OutlierDetector | None = None
 
 
 def get_outlier_detector() -> OutlierDetector:

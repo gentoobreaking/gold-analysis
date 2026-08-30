@@ -2,12 +2,10 @@
 User model for authentication and user management
 """
 from datetime import datetime
-from typing import Optional
-
-from sqlalchemy import String, Boolean, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.config import Base
+from sqlalchemy import Boolean, DateTime, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class User(Base):
@@ -25,9 +23,9 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     
     # User profile
-    display_name: Mapped[Optional[str]] = mapped_column(String(100))
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
-    bio: Mapped[Optional[str]] = mapped_column(Text)
+    display_name: Mapped[str | None] = mapped_column(String(100))
+    avatar_url: Mapped[str | None] = mapped_column(String(500))
+    bio: Mapped[str | None] = mapped_column(Text)
     
     # Preferences
     timezone: Mapped[str] = mapped_column(String(50), default="Asia/Taipei")
@@ -39,14 +37,14 @@ class User(Base):
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    last_login: Mapped[datetime | None] = mapped_column(DateTime)
     
     # Relationships
-    portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    decisions: Mapped[list["Decision"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    alerts: Mapped[list["Alert"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # noqa: F821
+    decisions: Mapped[list["Decision"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # noqa: F821
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # noqa: F821
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

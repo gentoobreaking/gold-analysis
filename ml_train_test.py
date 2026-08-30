@@ -9,19 +9,18 @@ ml_train_test.py - 測試 gold-analysis ML 模組
 輸入：gold_monitor_pro.db（local_sell 當收盤價）
 輸出：訓練結果 + 評估報告
 """
-import sys
+
 import sqlite3
-from datetime import datetime
+import sys
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
 
 # 載入 ML 模組
 sys.path.insert(0, str(Path(__file__).parent))
 from backend.app.ml.feature_engineering import FeatureEngineer
-from backend.app.ml.model_trainer import ModelTrainer, TrainingConfig
 from backend.app.ml.model_evaluator import ModelEvaluator
+from backend.app.ml.model_trainer import ModelTrainer, TrainingConfig
 
 
 def main():
@@ -46,7 +45,9 @@ def main():
 
     # ── 2. 轉換格式 ──────────────────────────────────────────────
     # 台灣銀行 local_sell 當收盤價
-    df = pd.DataFrame(rows, columns=["date", "close", "local_buy", "international_spot", "exchange_rate"])
+    df = pd.DataFrame(
+        rows, columns=["date", "close", "local_buy", "international_spot", "exchange_rate"]
+    )
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date").reset_index(drop=True)
     df["close"] = pd.to_numeric(df["close"], errors="coerce")
@@ -89,7 +90,7 @@ def main():
     )
     result = trainer.train(X, y, config=config, feature_names=feature_names)
 
-    print(f"\n📊 訓練結果:")
+    print("\n📊 訓練結果:")
     print(f"   模型: {result.model_name} {result.version}")
     print(f"   訓練準確率: {result.train_accuracy:.4f}")
     print(f"   驗證準確率: {result.val_accuracy:.4f}")
@@ -103,7 +104,7 @@ def main():
     print(f"   F1: {metrics.get('f1', 0):.4f}")
 
     # Top 5 特徵重要性
-    print(f"\n🔑 Top 5 重要特徵:")
+    print("\n🔑 Top 5 重要特徵:")
     importance = result.feature_importance
     if importance:
         sorted_imp = sorted(importance.items(), key=lambda x: x[1], reverse=True)
@@ -146,7 +147,7 @@ def main():
     try:
         proba = trainer.predict_proba(latest_features)
         classes = trainer.current_model.classes_
-        print(f"   機率: ", end="")
+        print("   機率: ", end="")
         for cls, p in zip(classes, proba[0]):
             print(f"{label_map.get(cls, cls)}={p:.2%} ", end="")
         print()

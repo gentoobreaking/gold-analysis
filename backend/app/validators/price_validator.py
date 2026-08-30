@@ -1,7 +1,6 @@
 # backend/app/validators/price_validator.py
 
 from datetime import datetime, timezone
-from typing import Optional
 
 
 class PriceValidator:
@@ -12,9 +11,7 @@ class PriceValidator:
 
     def validate_price(self, price: float) -> bool:
         """驗證價格合理性"""
-        if price is None or price <= 0:
-            return False
-        return True
+        return not (price is None or price <= 0)
 
     def validate_timestamp(self, ts: datetime) -> bool:
         """驗證時間戳"""
@@ -25,7 +22,7 @@ class PriceValidator:
             ts = ts.replace(tzinfo=timezone.utc)
         if ts > now:
             return False  # 未來時間
-        if (now - ts).days > 365:
+        if (now - ts).days > 365:  # noqa: SIM103
             return False  # 超過1年
         return True
 

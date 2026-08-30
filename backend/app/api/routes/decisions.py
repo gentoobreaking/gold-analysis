@@ -1,27 +1,24 @@
 """
 Decision routes - AI recommendations, trading decisions
 """
-from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-
-from app.models.user import User
-from app.models.decision import Decision
-from app.db.config import get_db_session
+from app.api.middleware.auth import get_current_active_user
 from app.api.schemas.decisions import (
     CreateDecisionRequest,
-    UpdateDecisionRequest,
-    ExecuteDecisionRequest,
-    DecisionResponse,
     DecisionListResponse,
-    RecommendationResponse,
+    DecisionResponse,
     DecisionStatsResponse,
+    ExecuteDecisionRequest,
+    RecommendationResponse,
+    UpdateDecisionRequest,
 )
-from app.api.middleware.auth import get_current_active_user
+from app.db.config import get_db_session
+from app.models.decision import Decision
+from app.models.user import User
 from app.services.decision_service import DecisionService
-
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -32,8 +29,8 @@ router = APIRouter()
 async def get_recommendations(
     symbol: str = Query(default="GOLD", description="資產符號"),
     confidence_threshold: float = Query(default=0.6, ge=0.0, le=1.0),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> RecommendationResponse:
     """
     獲取 AI 決策推薦。
@@ -67,8 +64,8 @@ async def get_recommendations(
 @router.post("/", response_model=DecisionResponse, status_code=status.HTTP_201_CREATED)
 async def create_decision(
     request: CreateDecisionRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DecisionResponse:
     """
     創建新決策記錄。
@@ -101,11 +98,11 @@ async def create_decision(
 async def list_decisions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    symbol: Optional[str] = Query(None, description="資產符號過濾"),
-    decision_type: Optional[str] = Query(None, description="決策類型過濾"),
-    is_executed: Optional[bool] = Query(None, description="是否已執行"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    symbol: str | None = Query(None, description="資產符號過濾"),
+    decision_type: str | None = Query(None, description="決策類型過濾"),
+    is_executed: bool | None = Query(None, description="是否已執行"),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DecisionListResponse:
     """
     列出用戶的決策記錄。
@@ -150,8 +147,8 @@ async def list_decisions(
 @router.get("/{decision_id}", response_model=DecisionResponse)
 async def get_decision(
     decision_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DecisionResponse:
     """獲取指定決策詳情。"""
     result = await db.execute(
@@ -175,8 +172,8 @@ async def get_decision(
 async def update_decision(
     decision_id: int,
     request: UpdateDecisionRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DecisionResponse:
     """更新決策記錄。"""
     result = await db.execute(
@@ -213,8 +210,8 @@ async def update_decision(
 async def execute_decision(
     decision_id: int,
     request: ExecuteDecisionRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DecisionResponse:
     """
     標記決策為已執行。
@@ -254,8 +251,8 @@ async def execute_decision(
 @router.delete("/{decision_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_decision(
     decision_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> None:
     """刪除決策記錄。"""
     result = await db.execute(
@@ -284,9 +281,9 @@ async def delete_decision(
 
 @router.get("/stats/summary", response_model=DecisionStatsResponse)
 async def get_decision_stats(
-    symbol: Optional[str] = Query(None, description="資產符號過濾"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db_session),
+    symbol: str | None = Query(None, description="資產符號過濾"),
+    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> DecisionStatsResponse:
     """獲取決策統計摘要。"""
     query = select(Decision).where(Decision.user_id == current_user.id)

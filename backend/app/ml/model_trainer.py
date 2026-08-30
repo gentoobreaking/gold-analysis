@@ -7,21 +7,18 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import pickle
-import hashlib
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field, asdict
-
-from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.base import BaseEstimator
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score, TimeSeriesSplit
+from sklearn.model_selection import TimeSeriesSplit, cross_val_score
 from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
@@ -36,7 +33,7 @@ class TrainingConfig:
     test_size: float = 0.2
     random_state: int = 42
     cv_folds: int = 5
-    model_params: Dict[str, Any] = field(default_factory=dict)
+    model_params: dict[str, Any] = field(default_factory=dict)
     scaler_enabled: bool = True
 
 
@@ -50,10 +47,10 @@ class TrainingResult:
     val_accuracy: float
     cv_mean: float
     cv_std: float
-    feature_importance: Dict[str, float]
-    config: Dict[str, Any]
-    metrics: Dict[str, float] = field(default_factory=dict)
-    path: Optional[str] = None
+    feature_importance: dict[str, float]
+    config: dict[str, Any]
+    metrics: dict[str, float] = field(default_factory=dict)
+    path: str | None = None
 
 
 class ModelRegistry:
@@ -71,10 +68,10 @@ class ModelRegistry:
     REGISTRY_FILE = "registry.json"
     DEFAULT_MODEL_DIR = "models"
     
-    def __init__(self, model_dir: Optional[str] = None):
+    def __init__(self, model_dir: str | None = None):
         self.model_dir = Path(model_dir or self.DEFAULT_MODEL_DIR)
         self.registry_path = self.model_dir / self.REGISTRY_FILE
-        self._registry: Dict[str, Any] = {}
+        self._registry: dict[str, Any] = {}
         self._load_registry()
     
     def _load_registry(self) -> None:
@@ -123,13 +120,13 @@ class ModelRegistry:
         logger.info(f"模型 {model_key} 已註冊")
         return model_key
     
-    def get_latest(self, model_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_latest(self, model_name: str | None = None) -> dict[str, Any] | None:
         """獲取最新註冊的模型信息"""
         if model_name:
             candidates = [k for k in self._registry["models"] if k.startswith(model_name)]
             if not candidates:
                 return None
-            key = sorted(candidates)[-1]
+            key = max(candidates)
         else:
             key = self._registry.get("latest")
             if not key:
@@ -137,7 +134,7 @@ class ModelRegistry:
         
         return self._registry["models"].get(key)
     
-    def list_models(self) -> List[Dict[str, Any]]:
+    def list_models(self) -> list[dict[str, Any]]:
         """列出所有註冊的模型"""
         return list(self._registry["models"].values())
     
@@ -179,7 +176,7 @@ class ModelTrainer:
     """
     
     # 支援的模型類型
-    SUPPORTED_MODELS = {
+    SUPPORTED_MODELS: ClassVar[dict[str, Any]] = {
         "random_forest": RandomForestClassifier,
         "gradient_boosting": GradientBoostingClassifier,
         "logistic": LogisticRegression,
@@ -187,16 +184,16 @@ class ModelTrainer:
     
     def __init__(
         self,
-        model_dir: Optional[str] = None,
-        registry: Optional[ModelRegistry] = None,
+        model_dir: str | None = None,
+        registry: ModelRegistry | None = None,
     ):
         self.model_dir = Path(model_dir or ModelRegistry.DEFAULT_MODEL_DIR)
         self.registry = registry or ModelRegistry(str(self.model_dir))
-        self.scaler: Optional[StandardScaler] = None
-        self.current_model: Optional[BaseEstimator] = None
-        self.current_version: Optional[str] = None
-        self.current_result: Optional[TrainingResult] = None
-        self.feature_names: List[str] = []
+        self.scaler: StandardScaler | None = None
+        self.current_model: BaseEstimator | None = None
+        self.current_version: str | None = None
+        self.current_result: TrainingResult | None = None
+        self.feature_names: list[str] = []
     
     # ─── 公開 API ─────────────────────────────────────────────────────────────
     
@@ -204,8 +201,8 @@ class ModelTrainer:
         self,
         X: pd.DataFrame,
         y: pd.Series,
-        config: Optional[TrainingConfig] = None,
-        feature_names: Optional[List[str]] = None,
+        config: TrainingConfig | None = None,
+        feature_names: list[str] | None = None,
     ) -> TrainingResult:
         """
         訓練模型
@@ -278,7 +275,7 @@ class ModelTrainer:
         self.current_result = TrainingResult(
             model_name=config.model_type,
             version=version,
-            trained_at=datetime.utcnow().isoformat(),
+            trained_at=datetime.now(timezone.utc).isoformat(),
             train_accuracy=float(train_acc),
             val_accuracy=float(val_acc),
             cv_mean=cv_mean,
@@ -347,7 +344,7 @@ class ModelTrainer:
         
         raise AttributeError(f"模型 {type(self.current_model)} 不支持概率預測")
     
-    def load_latest(self, model_name: Optional[str] = None) -> BaseEstimator:
+    def load_latest(self, model_name: str | None = None) -> BaseEstimator:
         """加載最新註冊的模型"""
         model_info = self.registry.get_latest(model_name)
         if not model_info:
@@ -380,13 +377,13 @@ class ModelTrainer:
         
         return self.current_model
     
-    def get_result(self) -> Optional[TrainingResult]:
+    def get_result(self) -> TrainingResult | None:
         """獲取當前訓練結果"""
         return self.current_result
     
     # ─── 私有輔助方法 ─────────────────────────────────────────────────────────
     
-    def _get_default_params(self, model_type: str) -> Dict[str, Any]:
+    def _get_default_params(self, model_type: str) -> dict[str, Any]:
         """返回各模型類型的默認超參數"""
         defaults = {
             "random_forest": {
@@ -413,8 +410,8 @@ class ModelTrainer:
     def _get_feature_importance(
         self,
         model: BaseEstimator,
-        feature_names: Optional[List[str]] = None
-    ) -> Dict[str, float]:
+        feature_names: list[str] | None = None
+    ) -> dict[str, float]:
         """提取特徵重要性"""
         names = feature_names or self.feature_names
         
@@ -438,7 +435,7 @@ class ModelTrainer:
         average: str = "weighted"
     ) -> float:
         """計算指定指標"""
-        from sklearn.metrics import precision_score, recall_score, f1_score
+        from sklearn.metrics import f1_score, precision_score, recall_score
         
         y_pred = model.predict(X)
         
@@ -453,7 +450,7 @@ class ModelTrainer:
     
     def _generate_version(self) -> str:
         """生成版本號"""
-        timestamp = datetime.utcnow().strftime("%Y%m%d")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         count = sum(
             1 for k in self.registry._registry["models"]
             if timestamp in k

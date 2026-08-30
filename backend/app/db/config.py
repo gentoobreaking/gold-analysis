@@ -2,14 +2,13 @@
 Database configuration module
 Handles PostgreSQL, InfluxDB, and Redis connections
 """
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
 
-from pydantic_settings import BaseSettings
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
 from influxdb_client import InfluxDBClient
+from pydantic_settings import BaseSettings
 from redis import asyncio as aioredis
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 
 class Settings(BaseSettings):
@@ -39,7 +38,6 @@ settings = Settings()
 # SQLAlchemy Base for models
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
-    pass
 
 
 # PostgreSQL async engine and session maker
@@ -99,7 +97,7 @@ async def init_postgres() -> None:
 
 
 # InfluxDB client
-_influx_client: Optional[InfluxDBClient] = None
+_influx_client: InfluxDBClient | None = None
 
 
 def get_influx_client() -> InfluxDBClient:
@@ -122,7 +120,7 @@ async def init_influxdb() -> None:
 
 
 # Redis client
-_redis_client: Optional[aioredis.Redis] = None
+_redis_client: aioredis.Redis | None = None
 
 
 def get_redis_client() -> aioredis.Redis:

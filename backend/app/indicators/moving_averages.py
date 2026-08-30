@@ -12,9 +12,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -181,7 +181,7 @@ def compute_wma(data: Sequence[float], period: int = 20) -> np.ndarray:
 def detect_crossover(
     short_ma: Sequence[float],
     long_ma: Sequence[float],
-) -> List[MovingAverageCrossover]:
+) -> list[MovingAverageCrossover]:
     """
     檢測均線交叉事件
 
@@ -203,7 +203,7 @@ def detect_crossover(
         raise ValueError("短均線與長均線長度必須相同")
 
     n = len(short)
-    crossovers: List[MovingAverageCrossover] = []
+    crossovers: list[MovingAverageCrossover] = []
 
     for i in range(1, n):
         # 跳過 NaN（前期數據不足）

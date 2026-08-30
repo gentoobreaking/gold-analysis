@@ -7,21 +7,22 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
     confusion_matrix,
-    roc_auc_score,
     f1_score,
+    mean_absolute_error,
+    mean_squared_error,
     precision_score,
+    r2_score,
     recall_score,
+    roc_auc_score,
 )
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,9 @@ class ClassificationMetrics:
     precision: float
     recall: float
     f1: float
-    roc_auc: Optional[float] = None
-    confusion_matrix: Optional[np.ndarray] = None
-    per_class_metrics: Optional[Dict[str, Dict[str, float]]] = None
+    roc_auc: float | None = None
+    confusion_matrix: np.ndarray | None = None
+    per_class_metrics: dict[str, dict[str, float]] | None = None
 
 
 @dataclass
@@ -55,9 +56,9 @@ class EvaluationReport:
     evaluated_at: str
     task_type: str  # "classification" | "regression"
     metrics: Any
-    feature_analysis: Dict[str, float] = field(default_factory=dict)
-    prediction_distribution: Dict[str, int] = field(default_factory=dict)
-    notes: List[str] = field(default_factory=list)
+    feature_analysis: dict[str, float] = field(default_factory=dict)
+    prediction_distribution: dict[str, int] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
 
 
 class ModelEvaluator:
@@ -73,7 +74,7 @@ class ModelEvaluator:
     """
     
     def __init__(self):
-        self.current_report: Optional[EvaluationReport] = None
+        self.current_report: EvaluationReport | None = None
     
     # ─── 公開 API ─────────────────────────────────────────────────────────────
     
@@ -81,8 +82,8 @@ class ModelEvaluator:
         self,
         y_true: np.ndarray,
         y_pred: np.ndarray,
-        y_proba: Optional[np.ndarray] = None,
-        class_labels: Optional[List[str]] = None,
+        y_proba: np.ndarray | None = None,
+        class_labels: list[str] | None = None,
         model_name: str = "unknown",
         version: str = "v0",
     ) -> EvaluationReport:
@@ -100,7 +101,7 @@ class ModelEvaluator:
         Returns:
             EvaluationReport
         """
-        from datetime import datetime
+        from datetime import datetime, timezone
         
         # 基本指標
         accuracy = accuracy_score(y_true, y_pred)
@@ -116,18 +117,17 @@ class ModelEvaluator:
         if y_proba is not None and len(np.unique(y_true)) == 2:
             try:
                 roc_auc = roc_auc_score(y_true, y_proba[:, 1])
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
-        
         # 類別報告
         report = classification_report(
             y_true, y_pred, zero_division=0, output_dict=True
         )
         per_class = {
             str(k): {
-                "precision": v["precision"] if "precision" in v else 0.0,
-                "recall": v["recall"] if "recall" in v else 0.0,
-                "f1": v["f1-score"] if "f1-score" in v else 0.0,
+                "precision": v.get("precision", 0.0),
+                "recall": v.get("recall", 0.0),
+                "f1": v.get("f1-score", 0.0),
                 "support": int(v["support"]) if "support" in v else 0,
             }
             for k, v in report.items()
@@ -161,7 +161,7 @@ class ModelEvaluator:
         self.current_report = EvaluationReport(
             model_name=model_name,
             version=version,
-            evaluated_at=datetime.utcnow().isoformat(),
+            evaluated_at=datetime.now(timezone.utc).isoformat(),
             task_type="classification",
             metrics=metrics,
             prediction_distribution=pred_dist,
@@ -194,7 +194,7 @@ class ModelEvaluator:
         Returns:
             EvaluationReport
         """
-        from datetime import datetime
+        from datetime import datetime, timezone
         
         mse = mean_squared_error(y_true, y_pred)
         rmse = np.sqrt(mse)
@@ -202,7 +202,7 @@ class ModelEvaluator:
         r2 = r2_score(y_true, y_pred)
         
         # 殘差分析
-        residuals = y_true - y_pred
+        y_true - y_pred
         notes = []
         if r2 < 0:
             notes.append("⚠️ R² 為負，模型解釋力極差")
@@ -219,7 +219,7 @@ class ModelEvaluator:
         self.current_report = EvaluationReport(
             model_name=model_name,
             version=version,
-            evaluated_at=datetime.utcnow().isoformat(),
+            evaluated_at=datetime.now(timezone.utc).isoformat(),
             task_type="regression",
             metrics=metrics,
             notes=notes,
@@ -233,8 +233,8 @@ class ModelEvaluator:
         self,
         y_true: np.ndarray,
         y_pred: np.ndarray,
-        feature_df: Optional[pd.DataFrame] = None,
-    ) -> Dict[str, Any]:
+        feature_df: pd.DataFrame | None = None,
+    ) -> dict[str, Any]:
         """
         錯誤分析 - 找出模型預測錯誤的樣本模式
         
@@ -251,7 +251,7 @@ class ModelEvaluator:
         total_samples = len(y_true)
         error_rate = total_errors / total_samples
         
-        analysis: Dict[str, Any] = {
+        analysis: dict[str, Any] = {
             "total_errors": int(total_errors),
             "total_samples": int(total_samples),
             "error_rate": float(error_rate),
@@ -321,7 +321,7 @@ class ModelEvaluator:
         y: np.ndarray,
         cv: int = 5,
         task_type: str = "classification",
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """
         使用交叉驗證生成評估報告
         
@@ -335,10 +335,10 @@ class ModelEvaluator:
         Returns:
             各指標的交叉驗證分數
         """
-        from sklearn.model_selection import cross_val_predict, TimeSeriesSplit
+        from sklearn.model_selection import TimeSeriesSplit
         
         tscv = TimeSeriesSplit(n_splits=cv)
-        scores: Dict[str, List[float]] = {
+        scores: dict[str, list[float]] = {
             "accuracy": [],
             "f1": [],
         }
@@ -366,11 +366,11 @@ class ModelEvaluator:
         logger.info(f"交叉驗證完成: {summary}")
         return summary
     
-    def get_report(self) -> Optional[EvaluationReport]:
+    def get_report(self) -> EvaluationReport | None:
         """獲取當前評估報告"""
         return self.current_report
     
-    def print_report(self, report: Optional[EvaluationReport] = None) -> str:
+    def print_report(self, report: EvaluationReport | None = None) -> str:
         """
         格式化打印評估報告
         

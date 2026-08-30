@@ -9,27 +9,27 @@ not pull in the API routes package that constructs ``Settings`` at import time.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
+from app.ml.ab_testing import ABTestEngine
+from app.ml.model_integration import Decision
+from app.ml.ops import run_monitor, run_retrain
+from app.trading.execution import execute_decision
+from app.trading.trade_logger import TradeLogger
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.ml.ops import run_monitor, run_retrain
-from app.ml.ab_testing import ABTestEngine
-from app.trading.execution import execute_decision
-from app.trading.trade_logger import TradeLogger
-from app.ml.model_integration import Decision
 ml_router = APIRouter(prefix="/api/ml", tags=["ml-ops"])
 trade_router = APIRouter(prefix="/api/trading", tags=["trading-ops"])
 
 
 class PricesIn(BaseModel):
-    prices: List[Dict[str, Any]]
+    prices: list[dict[str, Any]]
 
 
 class RetrainIn(PricesIn):
-    trigger: Optional[str] = None
+    trigger: str | None = None
     min_samples: int = 200
 
 
@@ -39,11 +39,11 @@ class DecisionIn(BaseModel):
     probability: float = 0.0
     confidence: float = 0.0
     suggested_position_pct: float = 0.0
-    model_version: Optional[str] = None
-    model_type: Optional[str] = None
+    model_version: str | None = None
+    model_type: str | None = None
     symbol: str = "XAUUSD"
     quantity: float = 1.0
-    log_path: Optional[str] = None
+    log_path: str | None = None
 
 
 # ABTestEngine 實例（單例模式）
@@ -60,18 +60,18 @@ if "default" not in ab_test_engine.experiments:
     # 使用固定 ID "default"
     ab_test_engine.experiments["default"] = default_config
 
-def _to_df(prices: List[Dict[str, Any]]) -> pd.DataFrame:
+def _to_df(prices: list[dict[str, Any]]) -> pd.DataFrame:
     return pd.DataFrame(prices)
 
 
 class ABAssignIn(BaseModel):
     user_id: str
     symbol: str = "XAUUSD"
-    experiment_id: Optional[str] = "default"
+    experiment_id: str | None = "default"
 
 
 @ml_router.post("/ab/assign")
-def ab_assign(payload: ABAssignIn) -> Dict[str, Any]:
+def ab_assign(payload: ABAssignIn) -> dict[str, Any]:
     """Assign a variant for A/B test based on deterministic split."""
     exp_id = payload.experiment_id or "default"
     config = ab_test_engine.experiments.get(exp_id)
@@ -100,20 +100,20 @@ def ab_assign(payload: ABAssignIn) -> Dict[str, Any]:
     }
 
 @ml_router.post("/monitor")
-def monitor(payload: PricesIn) -> Dict[str, Any]:
+def monitor(payload: PricesIn) -> dict[str, Any]:
     """Snapshot drift + health for the latest window."""
     return run_monitor(_to_df(payload.prices))
 
 
 @ml_router.post("/retrain")
-def retrain(payload: RetrainIn) -> Dict[str, Any]:
+def retrain(payload: RetrainIn) -> dict[str, Any]:
     """Retrain only when a trigger (schedule or drift/accuracy alert) is active."""
     result = run_retrain(_to_df(payload.prices), trigger=payload.trigger, min_samples=payload.min_samples)
     return result or {"retrained": False, "reason": "no active trigger"}
 
 
 @trade_router.post("/execute")
-def execute(payload: DecisionIn) -> Dict[str, Any]:
+def execute(payload: DecisionIn) -> dict[str, Any]:
     """Execute a structured Decision via core's OrderExecutor; log the outcome."""
     dec = Decision(
         action=payload.action,

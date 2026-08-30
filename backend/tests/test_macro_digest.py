@@ -3,6 +3,7 @@ T065 - LLM 宏觀每日摘要管線測試（mock LLM / 資料源；優雅降級�
 
 專案 pytest 配置為 asyncio_mode=auto，故 async 測試可直接定義。
 """
+
 from __future__ import annotations
 
 import os
@@ -13,8 +14,10 @@ from app.services.llm_client import LLMClient, LLMUnavailableError, Message
 
 # ── 注入用的 fake tool / LLM ────────────────────────────────────────────────
 
+
 class _FakeTools:
     """取代 DataTools.get_sentiment_data（不需網路）。"""
+
     async def get_sentiment_data(self):
         return {
             "available": True,
@@ -55,16 +58,16 @@ async def test_generate_uses_llm_when_available():
     assert result["llm_used"] is True
     assert llm.calls == 1
     text = result["markdown"]
-    assert "非投資建議" in text            # 必須標註免責聲明
-    assert "資料時間" in text               # 必須標註資料時間
+    assert "非投資建議" in text  # 必須標註免責聲明
+    assert "資料時間" in text  # 必須標註資料時間
     assert "Greed" in text or "貪婪" in text  # 引用真實情緒數據
-    assert os.path.exists(md.LATEST_JSON)    # 已存檔
+    assert os.path.exists(md.LATEST_JSON)  # 已存檔
 
 
 async def test_generate_degrades_when_llm_unavailable():
     llm = _FakeLLM(available=False)
     result = await md.generate_macro_digest(client=llm)
-    assert result["llm_used"] is False       # 優雅降級，不崩潰
+    assert result["llm_used"] is False  # 優雅降級，不崩潰
     assert "非投資建議" in result["markdown"]
     assert "資料時間" in result["markdown"]
     assert os.path.exists(md.LATEST_JSON)

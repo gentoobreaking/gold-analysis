@@ -2,18 +2,16 @@
 
 Mock 實作供測試/開發環境使用。正式環境可接入真實 AI 模型服務。
 """
+
 from __future__ import annotations
 
-import json
 import random
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any
 
-from sqlalchemy import select, func
+from app.models.decision import Decision, DecisionSource, DecisionType
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.decision import Decision, DecisionType, DecisionSource
-from app.models.user import User
 
 
 class DecisionService:
@@ -27,7 +25,7 @@ class DecisionService:
         user_id: int,
         symbol: str = "GOLD",
         confidence_threshold: float = 0.6,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """生成 AI 推薦（mock）。"""
         if symbol.upper() != "GOLD":
             raise ValueError(f"不支持的資產符號: {symbol}")
@@ -64,9 +62,14 @@ class DecisionService:
         # 決策可解釋性（規則決策：由決策方向合成維度評分）— T062
         try:
             from app.ml.explainer import explain_rule_decision
-            direction = {"buy": 0.4, "strong_buy": 0.7, "hold": 0.0, "sell": -0.4, "strong_sell": -0.7}.get(
-                decision.decision_type.value, 0.0
-            )
+
+            direction = {
+                "buy": 0.4,
+                "strong_buy": 0.7,
+                "hold": 0.0,
+                "sell": -0.4,
+                "strong_sell": -0.7,
+            }.get(decision.decision_type.value, 0.0)
             explanation = explain_rule_decision(
                 scores={
                     "technical": direction,
@@ -100,8 +103,12 @@ class DecisionService:
                 "executed_at": decision.executed_at,
                 "execution_price": decision.execution_price,
                 "model_version": decision.model_version,
-                "created_at": decision.created_at.isoformat() if decision.created_at else datetime.utcnow().isoformat(),
-                "updated_at": decision.updated_at.isoformat() if decision.updated_at else datetime.utcnow().isoformat(),
+                "created_at": decision.created_at.isoformat()
+                if decision.created_at
+                else datetime.now(timezone.utc).isoformat(),
+                "updated_at": decision.updated_at.isoformat()
+                if decision.updated_at
+                else datetime.now(timezone.utc).isoformat(),
             },
             "reasoning": reasoning,
             "risk_level": "medium",
@@ -118,11 +125,11 @@ class DecisionService:
         asset: str,
         signal_strength: float,
         confidence: float,
-        price_target: Optional[float] = None,
-        stop_loss: Optional[float] = None,
-        reason_zh: Optional[str] = None,
-        reason_en: Optional[str] = None,
-        portfolio_id: Optional[int] = None,
+        price_target: float | None = None,
+        stop_loss: float | None = None,
+        reason_zh: str | None = None,
+        reason_en: str | None = None,
+        portfolio_id: int | None = None,
     ) -> Decision:
         """創建決策記錄。"""
         decision = Decision(
@@ -147,18 +154,18 @@ class DecisionService:
     async def execute_decision(
         self,
         decision: Decision,
-        execution_price: Optional[float] = None,
+        execution_price: float | None = None,
     ) -> Decision:
         """標記決策為已執行。"""
         decision.is_executed = True
-        decision.executed_at = datetime.utcnow()
+        decision.executed_at = datetime.now(timezone.utc)
         if execution_price is not None:
             decision.execution_price = execution_price
         await self.session.commit()
         await self.session.refresh(decision)
         return decision
 
-    async def get_decision_stats(self, user_id: int) -> Dict[str, Any]:
+    async def get_decision_stats(self, user_id: int) -> dict[str, Any]:
         """獲取決策統計（mock）。"""
         # 查詢實際數據
         total_result = await self.session.execute(
@@ -175,9 +182,7 @@ class DecisionService:
         strengths = []
 
         if total > 0:
-            result = await self.session.execute(
-                select(Decision).where(Decision.user_id == user_id)
-            )
+            result = await self.session.execute(select(Decision).where(Decision.user_id == user_id))
             decisions = result.scalars().all()
             for d in decisions:
                 type_counts[d.decision_type.value] += 1

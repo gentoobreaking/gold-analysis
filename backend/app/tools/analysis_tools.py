@@ -4,10 +4,9 @@
 提供移動平均線、RSI、MACD、布林帶等常用技術指標計算。
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-import math
-from collections import deque
 import logging
+import math
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class AnalysisTools:
     提供黃金和金融市場技術分析的計算工具。
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         初始化分析工具
         
@@ -31,7 +30,7 @@ class AnalysisTools:
     
     # ==================== 簡單移動平均線 (SMA) ====================
     
-    async def calculate_ma(self, data: List[float], period: int) -> List[float]:
+    async def calculate_ma(self, data: list[float], period: int) -> list[float]:
         """
         計算簡單移動平均線 (Simple Moving Average)
         
@@ -56,7 +55,7 @@ class AnalysisTools:
     
     # ==================== 指數移動平均線 (EMA) ====================
     
-    async def calculate_ema(self, data: List[float], period: int) -> List[float]:
+    async def calculate_ema(self, data: list[float], period: int) -> list[float]:
         """
         計算指數移動平均線 (Exponential Moving Average)
         
@@ -87,10 +86,10 @@ class AnalysisTools:
     
     async def calculate_rsi(
         self, 
-        data: List[float], 
+        data: list[float], 
         period: int = 14,
         method: str = "wilders"
-    ) -> List[float]:
+    ) -> list[float]:
         """
         計算 RSI (Relative Strength Index)
         
@@ -113,7 +112,7 @@ class AnalysisTools:
         
         if method == "wilders":
             # Wilder's smoothing method
-            gains = [c if c > 0 else 0 for c in changes]
+            gains = [max(0, c) for c in changes]
             losses = [-c if c < 0 else 0 for c in changes]
             
             # First average
@@ -154,11 +153,11 @@ class AnalysisTools:
     
     async def calculate_macd(
         self,
-        data: List[float],
+        data: list[float],
         fast_period: int = 12,
         slow_period: int = 26,
         signal_period: int = 9
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """
         計算 MACD (Moving Average Convergence Divergence)
         
@@ -235,10 +234,10 @@ class AnalysisTools:
     
     async def calculate_bollinger_bands(
         self,
-        data: List[float],
+        data: list[float],
         period: int = 20,
         std_dev: float = 2.0
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """
         計算布林帶 (Bollinger Bands)
         
@@ -279,11 +278,11 @@ class AnalysisTools:
     
     async def calculate_atr(
         self,
-        high: List[float],
-        low: List[float],
-        close: List[float],
+        high: list[float],
+        low: list[float],
+        close: list[float],
         period: int = 14
-    ) -> List[float]:
+    ) -> list[float]:
         """
         計算 ATR (Average True Range)
         
@@ -325,9 +324,9 @@ class AnalysisTools:
     
     async def find_support_resistance(
         self,
-        data: List[float],
+        data: list[float],
         window: int = 5
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """
         識別支撐位和阻力位
         
@@ -368,9 +367,9 @@ class AnalysisTools:
     
     def _cluster_levels(
         self, 
-        levels: List[float], 
+        levels: list[float], 
         tolerance: float = 5.0
-    ) -> List[float]:
+    ) -> list[float]:
         """將接近的價格位聚類"""
         if not levels:
             return []
@@ -395,10 +394,10 @@ class AnalysisTools:
     
     async def analyze_trend(
         self,
-        data: List[float],
+        data: list[float],
         short_period: int = 10,
         long_period: int = 30
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         分析價格趨勢
         
