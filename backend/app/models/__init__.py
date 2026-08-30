@@ -1,6 +1,7 @@
 """
 SQLAlchemy models package
 """
+
 from .alert import Alert
 from .decision import Decision, DecisionSource, DecisionType
 from .portfolio import Portfolio

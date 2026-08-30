@@ -2,6 +2,7 @@
 Alert Service - 告警規則引擎
 支援價格告警、指標告警、信號告警
 """
+
 import logging
 from datetime import datetime, timezone
 from enum import Enum
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class AlertStatus(str, Enum):
     """告警觸發狀態"""
+
     PENDING = "pending"
     TRIGGERED = "triggered"
     EXPIRED = "expired"
@@ -63,16 +65,18 @@ class AlertService:
         """列出用戶告警"""
         stmt = select(Alert).where(Alert.user_id == user_id)
         if active_only:
-            stmt = stmt.where(Alert.is_active == True)
+            stmt = stmt.where(Alert.is_active.is_(True))
         stmt = stmt.order_by(Alert.created_at.desc())
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def deactivate_alert(self, alert_id: int, user_id: int) -> bool:
         """停用告警"""
-        stmt = update(Alert).where(
-            Alert.id == alert_id, Alert.user_id == user_id
-        ).values(is_active=False)
+        stmt = (
+            update(Alert)
+            .where(Alert.id == alert_id, Alert.user_id == user_id)
+            .values(is_active=False)
+        )
         result = await self.session.execute(stmt)
         await self.session.commit()
         return result.rowcount > 0
@@ -109,7 +113,7 @@ class AlertService:
         stmt = select(Alert).where(
             Alert.user_id == user_id,
             Alert.asset == asset,
-            Alert.is_active == True,
+            Alert.is_active.is_(True),
         )
         result = await self.session.execute(stmt)
         alerts = result.scalars().all()
@@ -164,15 +168,15 @@ class AlertService:
             Alert.user_id == user_id,
             Alert.asset == asset,
             Alert.alert_type == AlertType.INDICATOR_CROSS,
-            Alert.is_active == True,
+            Alert.is_active.is_(True),
         )
         result = await self.session.execute(stmt)
         alerts = result.scalars().all()
 
         for alert in alerts:
             if (
-                direction == "above" and indicator_value >= threshold
-                or direction == "below" and indicator_value <= threshold
+                (direction == "above" and indicator_value >= threshold)
+                or (direction == "below" and indicator_value <= threshold)
             ) and self._matches_indicator_filter(alert, indicator_name, direction):
                 alert.is_active = False
                 alert.triggered_at = datetime.now(timezone.utc)
@@ -183,9 +187,7 @@ class AlertService:
 
         return triggered
 
-    def _matches_indicator_filter(
-        self, alert: Alert, indicator_name: str, direction: str
-    ) -> bool:
+    def _matches_indicator_filter(self, alert: Alert, indicator_name: str, direction: str) -> bool:
         """匹配指標過濾條件"""
         if not alert.extra_data:
             return True
@@ -216,13 +218,17 @@ class AlertService:
             Alert.user_id == user_id,
             Alert.asset == asset,
             Alert.alert_type == AlertType.VOLUME_SPIKE,  # 用 VOLUME_SPIKE 代替信號告警
-            Alert.is_active == True,
+            Alert.is_active.is_(True),
         )
         result = await self.session.execute(stmt)
         alerts = result.scalars().all()
 
         for alert in alerts:
-            if alert.extra_data and new_signal in alert.extra_data and signal_strength >= alert.target_price:
+            if (
+                alert.extra_data
+                and new_signal in alert.extra_data
+                and signal_strength >= alert.target_price
+            ):
                 alert.is_active = False
                 alert.triggered_at = datetime.now(timezone.utc)
                 triggered.append(alert)
@@ -265,7 +271,7 @@ class AlertService:
 
         # 指標告警
         if indicator_data:
-            for asset, price in price_data.items():
+            for asset, _price in price_data.items():
                 for ind_name, ind_val in indicator_data.items():
                     if isinstance(ind_val, (int, float)):
                         direction = "above" if ind_val > 50 else "below"
@@ -276,7 +282,7 @@ class AlertService:
 
         # 信號告警
         if signal_data:
-            for asset, price in price_data.items():
+            for asset, _price in price_data.items():
                 triggered = await self.check_signal_alerts(
                     user_id,
                     asset,

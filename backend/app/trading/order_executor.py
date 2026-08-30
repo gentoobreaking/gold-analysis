@@ -22,7 +22,9 @@ class OrderExecutionError(RuntimeError):
 class OrderExecutor:
     """高層訂單執行器，提供簡潔 API 給決策系統使用"""
 
-    def __init__(self, client: ExchangeClient | None = None, use_mock: bool = True, **client_kwargs):
+    def __init__(
+        self, client: ExchangeClient | None = None, use_mock: bool = True, **client_kwargs
+    ):
         if client:
             self.client = client
         else:
@@ -30,10 +32,19 @@ class OrderExecutor:
         self.logger = logging.getLogger(__name__)
 
     # ─── 主要執行入口 ────────────────────────────────────────
-    def execute(self, symbol: str, side: str, quantity: float, order_type: str = "market", price: float | None = None,
-                stop_price: float | None = None, time_in_force: str = "GTC", client_order_id: str | None = None) -> OrderResponse:
+    def execute(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        order_type: str = "market",
+        price: float | None = None,
+        stop_price: float | None = None,
+        time_in_force: str = "GTC",
+        client_order_id: str | None = None,
+    ) -> OrderResponse:
         """下單並返回統一的 OrderResponse
-        
+
         Args:
             symbol: 標的代碼
             side: "buy" 或 "sell"
@@ -55,14 +66,14 @@ class OrderExecutor:
             time_in_force=TimeInForce(time_in_force),
             client_order_id=client_order_id,
         )
-        
+
         # 2. 調用 ExchangeClient
         response: OrderResponse = self.client.submit_order(request)
-        
+
         if not response.success:
             self.logger.error(f"下單失敗: {response.error_message}")
             raise OrderExecutionError(response.error_message or "下單失敗")
-        
+
         self.logger.info(f"下單成功: {response.order.order_id} ({symbol} {side} {quantity})")
         return response
 

@@ -23,23 +23,27 @@ logger = logging.getLogger(__name__)
 
 # ─── 數據類別 ─────────────────────────────────────────────────────────────────
 
+
 class MACrossType(str, Enum):
     """均線交叉類型"""
-    GOLDEN_CROSS = "golden_cross"    # 短均線上穿長均線（看多）
-    DEATH_CROSS = "death_cross"      # 短均線下穿長均線（看空）
-    NONE = "none"                    # 無交叉
+
+    GOLDEN_CROSS = "golden_cross"  # 短均線上穿長均線（看多）
+    DEATH_CROSS = "death_cross"  # 短均線下穿長均線（看空）
+    NONE = "none"  # 無交叉
 
 
 @dataclass
 class MovingAverageCrossover:
     """均線交叉事件"""
+
     cross_type: MACrossType
-    index: int                       # 發生交叉的索引位置
-    short_value: float               # 交叉時短均線值
-    long_value: float                # 交叉時長均線值
+    index: int  # 發生交叉的索引位置
+    short_value: float  # 交叉時短均線值
+    long_value: float  # 交叉時長均線值
 
 
 # ─── SMA ────────────────────────────────────────────────────────────────────────
+
 
 class SMA:
     """
@@ -72,8 +76,8 @@ class SMA:
         # 滑動窗口求均值
         cumsum = np.cumsum(arr)
         cumsum = np.insert(cumsum, 0, 0.0)
-        window_sums = cumsum[self.period:] - cumsum[:n - self.period + 1]
-        result[self.period - 1:] = window_sums / self.period
+        window_sums = cumsum[self.period :] - cumsum[: n - self.period + 1]
+        result[self.period - 1 :] = window_sums / self.period
         return result
 
 
@@ -83,6 +87,7 @@ def compute_sma(data: Sequence[float], period: int = 20) -> np.ndarray:
 
 
 # ─── EMA ────────────────────────────────────────────────────────────────────────
+
 
 class EMA:
     """
@@ -117,7 +122,7 @@ class EMA:
             return result
 
         # 第一個 EMA 值用 SMA 初始化
-        result[self.period - 1] = np.mean(arr[:self.period])
+        result[self.period - 1] = np.mean(arr[: self.period])
 
         # 遞推計算
         for i in range(self.period, n):
@@ -132,6 +137,7 @@ def compute_ema(data: Sequence[float], period: int = 12) -> np.ndarray:
 
 
 # ─── WMA ────────────────────────────────────────────────────────────────────────
+
 
 class WMA:
     """
@@ -165,7 +171,7 @@ class WMA:
             return result
 
         for i in range(self.period - 1, n):
-            window = arr[i - self.period + 1:i + 1]
+            window = arr[i - self.period + 1 : i + 1]
             result[i] = np.dot(self._weights, window) / self._weight_sum
 
         return result
@@ -177,6 +183,7 @@ def compute_wma(data: Sequence[float], period: int = 20) -> np.ndarray:
 
 
 # ─── 均線交叉檢測 ───────────────────────────────────────────────────────────────
+
 
 def detect_crossover(
     short_ma: Sequence[float],
@@ -217,19 +224,23 @@ def detect_crossover(
 
         # 短均線上穿長均線 → 金叉
         if prev_diff <= 0 and curr_diff > 0:
-            crossovers.append(MovingAverageCrossover(
-                cross_type=MACrossType.GOLDEN_CROSS,
-                index=i,
-                short_value=float(short[i]),
-                long_value=float(long_[i]),
-            ))
+            crossovers.append(
+                MovingAverageCrossover(
+                    cross_type=MACrossType.GOLDEN_CROSS,
+                    index=i,
+                    short_value=float(short[i]),
+                    long_value=float(long_[i]),
+                )
+            )
         # 短均線下穿長均線 → 死叉
         elif prev_diff >= 0 and curr_diff < 0:
-            crossovers.append(MovingAverageCrossover(
-                cross_type=MACrossType.DEATH_CROSS,
-                index=i,
-                short_value=float(short[i]),
-                long_value=float(long_[i]),
-            ))
+            crossovers.append(
+                MovingAverageCrossover(
+                    cross_type=MACrossType.DEATH_CROSS,
+                    index=i,
+                    short_value=float(short[i]),
+                    long_value=float(long_[i]),
+                )
+            )
 
     return crossovers

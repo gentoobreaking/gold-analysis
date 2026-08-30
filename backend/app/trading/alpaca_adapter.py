@@ -59,19 +59,21 @@ logger = logging.getLogger(__name__)
 # Alpaca 期貨: GC (Gold), SI (Silver), PL (Platinum) 等（需開通期貨權限）
 # 黃金相關 ETF: GLD, GDX, IAU
 ALPACA_SYMBOLS = {
-    "GOLD":   "GLD",    # SPDR Gold Shares (現貨黃金 ETF)
-    "XAUUSD": "GLD",    # 黃金現貨 → 映射到 GLD ETF
-    "SILVER": "SLV",    # iShares Silver Trust
-    "SPY":    "SPY",    # S&P 500 ETF
-    "AAPL":   "AAPL",   # Apple
-    "TSLA":   "TSLA",   # Tesla
+    "GOLD": "GLD",  # SPDR Gold Shares (現貨黃金 ETF)
+    "XAUUSD": "GLD",  # 黃金現貨 → 映射到 GLD ETF
+    "SILVER": "SLV",  # iShares Silver Trust
+    "SPY": "SPY",  # S&P 500 ETF
+    "AAPL": "AAPL",  # Apple
+    "TSLA": "TSLA",  # Tesla
     # 更多可擴展...
 }
+
 
 # Internal Symbol → Alpaca Symbol
 def to_alpaca_symbol(symbol: str) -> str:
     """將內部標的代碼轉換為 Alpaca 標的代碼"""
     return ALPACA_SYMBOLS.get(symbol, symbol)
+
 
 # Alpaca Symbol → Internal Symbol
 def from_alpaca_symbol(alpaca_symbol: str) -> str:
@@ -84,22 +86,23 @@ def from_alpaca_symbol(alpaca_symbol: str) -> str:
 
 # ─── Alpaca API 回應狀態映射 ────────────────────────────────────────────────
 
+
 def _map_alpaca_order_status(raw: str) -> OrderStatus:
     """將 Alpaca API 回應的訂單狀態轉換為內部枚舉"""
     mapping = {
-        "pending_new":      OrderStatus.PENDING,
-        "new":              OrderStatus.SUBMITTED,
+        "pending_new": OrderStatus.PENDING,
+        "new": OrderStatus.SUBMITTED,
         "partially_filled": OrderStatus.PARTIAL,
-        "filled":           OrderStatus.FILLED,
-        "done_for_day":     OrderStatus.EXPIRED,
-        "cancelled":        OrderStatus.CANCELLED,
-        "expired":          OrderStatus.EXPIRED,
-        "rejected":         OrderStatus.REJECTED,
-        "stopped":          OrderStatus.REJECTED,
-        "accepted":         OrderStatus.SUBMITTED,
-        "pending_cancel":   OrderStatus.SUBMITTED,
-        "pending_replace":  OrderStatus.SUBMITTED,
-        "replaced":         OrderStatus.SUBMITTED,
+        "filled": OrderStatus.FILLED,
+        "done_for_day": OrderStatus.EXPIRED,
+        "cancelled": OrderStatus.CANCELLED,
+        "expired": OrderStatus.EXPIRED,
+        "rejected": OrderStatus.REJECTED,
+        "stopped": OrderStatus.REJECTED,
+        "accepted": OrderStatus.SUBMITTED,
+        "pending_cancel": OrderStatus.SUBMITTED,
+        "pending_replace": OrderStatus.SUBMITTED,
+        "replaced": OrderStatus.SUBMITTED,
     }
     return mapping.get(raw, OrderStatus.PENDING)
 
@@ -111,17 +114,18 @@ def _map_alpaca_side(raw: str) -> OrderSide:
 def _map_time_in_force(raw: str) -> TimeInForce:
     """將 Alpaca time_in_force 轉換為內部枚舉"""
     mapping = {
-        "day":  TimeInForce.DAY,
-        "gtc":  TimeInForce.GTC,
-        "ioc":  TimeInForce.IOC,
-        "fok":  TimeInForce.FOK,
-        "opg":  TimeInForce.DAY,
-        "cls":  TimeInForce.DAY,
+        "day": TimeInForce.DAY,
+        "gtc": TimeInForce.GTC,
+        "ioc": TimeInForce.IOC,
+        "fok": TimeInForce.FOK,
+        "opg": TimeInForce.DAY,
+        "cls": TimeInForce.DAY,
     }
     return mapping.get(raw, TimeInForce.GTC)
 
 
 # ─── AlpacaExchange 實現 ─────────────────────────────────────────────────────
+
 
 class AlpacaExchange(ExchangeInterface):
     """
@@ -158,8 +162,8 @@ class AlpacaExchange(ExchangeInterface):
     supported_symbols: ClassVar[list[str]] = list(ALPACA_SYMBOLS.keys())
 
     # API 端點
-    BASE_URL_PAPER  = "https://paper-api.alpaca.markets"
-    BASE_URL_LIVE   = "https://api.alpaca.markets"
+    BASE_URL_PAPER = "https://paper-api.alpaca.markets"
+    BASE_URL_LIVE = "https://api.alpaca.markets"
     CRYPTO_BASE_URL = "https://data.alpaca.markets"
 
     # HTTP Header 版本
@@ -192,23 +196,22 @@ class AlpacaExchange(ExchangeInterface):
             risk_config=risk_config,
         )
 
-        self.base_url = (
-            base_url
-            or (self.BASE_URL_PAPER if is_demo else self.BASE_URL_LIVE)
-        )
+        self.base_url = base_url or (self.BASE_URL_PAPER if is_demo else self.BASE_URL_LIVE)
         self.timeout = timeout
         self._session = requests.Session()
-        self._session.headers.update({
-            "APCA-API-KEY-ID":     self.api_key or "",
-            "APCA-API-SECRET-KEY": self.api_secret or "",
-            "Content-Type":        "application/json",
-        })
+        self._session.headers.update(
+            {
+                "APCA-API-KEY-ID": self.api_key or "",
+                "APCA-API-SECRET-KEY": self.api_secret or "",
+                "Content-Type": "application/json",
+            }
+        )
         self.logger = logging.getLogger(f"{__name__}.AlpacaExchange")
 
         # 本地訂單簿（快取 Alpaca 的訂單狀態，減少 API 調用）
-        self._orders:     dict[str, Order]  = {}
-        self._positions:  dict[str, Position] = {}
-        self._account:    AccountBalance | None = None
+        self._orders: dict[str, Order] = {}
+        self._positions: dict[str, Position] = {}
+        self._account: AccountBalance | None = None
 
     # ─── 工廠方法 ───────────────────────────────────────────────────────────
 
@@ -221,12 +224,13 @@ class AlpacaExchange(ExchangeInterface):
           ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER, ALPACA_BASE_URL
         """
         from dotenv import load_dotenv
+
         load_dotenv()
 
-        api_key    = os.getenv("ALPACA_API_KEY")    or os.getenv("APCA_API_KEY_ID")
+        api_key = os.getenv("ALPACA_API_KEY") or os.getenv("APCA_API_KEY_ID")
         api_secret = os.getenv("ALPACA_SECRET_KEY") or os.getenv("APCA_API_SECRET_KEY")
-        is_demo    = os.getenv("ALPACA_PAPER", "true").lower() != "false"
-        base_url   = os.getenv("ALPACA_BASE_URL")
+        is_demo = os.getenv("ALPACA_PAPER", "true").lower() != "false"
+        base_url = os.getenv("ALPACA_BASE_URL")
 
         if not api_key or not api_secret:
             raise ValueError(
@@ -286,14 +290,11 @@ class AlpacaExchange(ExchangeInterface):
         resp.raise_for_status()
         return resp
 
-    def _request(self, method: str, path: str,
-                 json: dict | None = None) -> requests.Response:
+    def _request(self, method: str, path: str, json: dict | None = None) -> requests.Response:
         """通用 HTTP 請求（自動處理 429 Retry-After）"""
         url = f"{self.base_url}/{self.HEADER_APCA_API_VERSION}{path}"
-        for attempt in range(3):
-            resp = self._session.request(
-                method, url, json=json, timeout=self.timeout
-            )
+        for _attempt in range(3):
+            resp = self._session.request(method, url, json=json, timeout=self.timeout)
             if resp.status_code == 429:
                 retry_after = int(resp.headers.get("Retry-After", 5))
                 self.logger.warning(f"[Alpaca] Rate limit，{retry_after}s 後重試...")
@@ -315,12 +316,12 @@ class AlpacaExchange(ExchangeInterface):
         resp = self._get("/account").json()
 
         self._account = AccountBalance(
-            total_equity=        float(resp.get("equity", 0)),
-            cash=                float(resp.get("cash", 0)),
-            currency=            resp.get("currency", "USD"),
-            margin_used=         float(resp.get("margin_used", 0)),
-            unrealized_pnl=      float(resp.get("equity", 0)) - float(resp.get("cash", 0)),
-            realized_pnl_today= float(resp.get("last_day_turnover", 0)),
+            total_equity=float(resp.get("equity", 0)),
+            cash=float(resp.get("cash", 0)),
+            currency=resp.get("currency", "USD"),
+            margin_used=float(resp.get("margin_used", 0)),
+            unrealized_pnl=float(resp.get("equity", 0)) - float(resp.get("cash", 0)),
+            realized_pnl_today=float(resp.get("last_day_turnover", 0)),
             exchange=self.exchange_name,
             timestamp=datetime.now(timezone.utc),
         )
@@ -347,9 +348,7 @@ class AlpacaExchange(ExchangeInterface):
                 quantity=abs(float(p["qty"])),
                 avg_entry_price=float(p["avg_entry_price"]),
                 current_price=float(p.get("current_price", 0)),
-                realized_pnl=float(p.get("unrealized_pl", 0)) * (
-                    -1 if float(p["qty"]) < 0 else 1
-                ),
+                realized_pnl=float(p.get("unrealized_pl", 0)) * (-1 if float(p["qty"]) < 0 else 1),
                 exchange=self.exchange_name,
             )
             self._positions[symbol] = pos
@@ -412,7 +411,7 @@ class AlpacaExchange(ExchangeInterface):
                     symbol=symbol,
                     bid=float(data.get("bp", 0)),
                     ask=float(data.get("ap", 0)),
-                    last=float(data.get("ap", 0)),   # ask 作為 last 近似
+                    last=float(data.get("ap", 0)),  # ask 作為 last 近似
                     volume=float(data.get("v", 0)),
                     timestamp=datetime.fromisoformat(
                         str(data.get("t") or datetime.now(timezone.utc).isoformat())
@@ -424,10 +423,14 @@ class AlpacaExchange(ExchangeInterface):
 
         # ── 備用：前一交易日收盤價 ───────────────────────────────────────────
         try:
-            bars = self._get(
-                f"/market_data/stocks/{alpaca_sym}/bars",
-                params={"timeframe": "1Day", "limit": 1},
-            ).json().get("bars", [])
+            bars = (
+                self._get(
+                    f"/market_data/stocks/{alpaca_sym}/bars",
+                    params={"timeframe": "1Day", "limit": 1},
+                )
+                .json()
+                .get("bars", [])
+            )
 
             if bars:
                 bar = bars[0]
@@ -438,9 +441,7 @@ class AlpacaExchange(ExchangeInterface):
                     ask=price * 1.0005,
                     last=price,
                     volume=float(bar.get("v", 0)),
-                    timestamp=datetime.fromisoformat(
-                        bar["t"].replace("Z", "+00:00")
-                    ),
+                    timestamp=datetime.fromisoformat(bar["t"].replace("Z", "+00:00")),
                     source=self.exchange_name,
                 )
         except RequestException as e:
@@ -471,27 +472,27 @@ class AlpacaExchange(ExchangeInterface):
 
         # 格式化時間（ISO 8601 with timezone）
         start_str = start.astimezone(timezone.utc).isoformat()
-        end_str   = end.astimezone(timezone.utc).isoformat()
+        end_str = end.astimezone(timezone.utc).isoformat()
 
         resp = self._get(
             f"/market_data/stocks/{alpaca_sym}/bars",
             params={
                 "timeframe": timeframe,
-                "start":     start_str,
-                "end":       end_str,
-                "limit":     1000,
-                "adjustment": "split",      # 自動調整split/dividend
+                "start": start_str,
+                "end": end_str,
+                "limit": 1000,
+                "adjustment": "split",  # 自動調整split/dividend
             },
         )
 
         bars = resp.json().get("bars", [])
         return [
             {
-                "date":   bar["t"],
-                "open":   bar["o"],
-                "high":   bar["h"],
-                "low":    bar["l"],
-                "close":  bar["c"],
+                "date": bar["t"],
+                "open": bar["o"],
+                "high": bar["h"],
+                "low": bar["l"],
+                "close": bar["c"],
                 "volume": bar["v"],
             }
             for bar in bars
@@ -535,10 +536,10 @@ class AlpacaExchange(ExchangeInterface):
 
         # ── 3. 構造 Alpaca API 請求 body ────────────────────────────────────
         body: dict[str, Any] = {
-            "symbol":        alpaca_sym,
-            "side":          request.side.value,
-            "type":          request.order_type.value,
-            "qty":           str(request.quantity),
+            "symbol": alpaca_sym,
+            "side": request.side.value,
+            "type": request.order_type.value,
+            "qty": str(request.quantity),
             "time_in_force": request.time_in_force.value.lower(),
         }
 
@@ -572,7 +573,8 @@ class AlpacaExchange(ExchangeInterface):
                 status=_map_alpaca_order_status(raw_order["status"]),
                 filled_quantity=float(raw_order.get("filled_qty", 0)),
                 avg_fill_price=float(raw_order["filled_avg_price"])
-                              if raw_order.get("filled_avg_price") else 0.0,
+                if raw_order.get("filled_avg_price")
+                else 0.0,
                 time_in_force=_map_time_in_force(raw_order["time_in_force"]),
                 created_at=_parse_alpaca_time(raw_order.get("created_at")),
                 updated_at=_parse_alpaca_time(raw_order.get("updated_at")),
@@ -669,8 +671,7 @@ class AlpacaExchange(ExchangeInterface):
             stop_price=float(raw["stop_price"]) if raw.get("stop_price") else None,
             status=_map_alpaca_order_status(raw["status"]),
             filled_quantity=float(raw.get("filled_qty", 0)),
-            avg_fill_price=float(raw["filled_avg_price"])
-                          if raw.get("filled_avg_price") else 0.0,
+            avg_fill_price=float(raw["filled_avg_price"]) if raw.get("filled_avg_price") else 0.0,
             time_in_force=_map_time_in_force(raw["time_in_force"]),
             created_at=_parse_alpaca_time(raw.get("created_at")),
             updated_at=_parse_alpaca_time(raw.get("updated_at")),
@@ -691,16 +692,18 @@ class AlpacaExchange(ExchangeInterface):
             activities: list[dict] = resp.json()
             trades: list[Trade] = []
             for act in activities:
-                trades.append(Trade(
-                    trade_id=act.get("id", ""),
-                    order_id=act.get("order_id", ""),
-                    symbol=from_alpaca_symbol(act.get("symbol", "")),
-                    side=OrderSide.BUY if act.get("side") == "buy" else OrderSide.SELL,
-                    quantity=float(act.get("qty", 0)),
-                    price=float(act.get("price", 0)),
-                    commission=float(act.get("commission", 0)),
-                    timestamp=_parse_alpaca_time(act.get("transaction_time")),
-                ))
+                trades.append(
+                    Trade(
+                        trade_id=act.get("id", ""),
+                        order_id=act.get("order_id", ""),
+                        symbol=from_alpaca_symbol(act.get("symbol", "")),
+                        side=OrderSide.BUY if act.get("side") == "buy" else OrderSide.SELL,
+                        quantity=float(act.get("qty", 0)),
+                        price=float(act.get("price", 0)),
+                        commission=float(act.get("commission", 0)),
+                        timestamp=_parse_alpaca_time(act.get("transaction_time")),
+                    )
+                )
             return trades
         except RequestException as e:
             self.logger.warning(f"[Alpaca] 獲取成交記錄失敗: {e}")
@@ -712,6 +715,7 @@ class AlpacaExchange(ExchangeInterface):
 
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
+
 
 def _parse_alpaca_time(raw: str | None) -> datetime:
     """解析 Alpaca API 回應的 ISO 8601 時間字串"""
@@ -730,7 +734,7 @@ def _parse_alpaca_error(exc: RequestException) -> dict[str, str]:
     try:
         body = exc.response.json()
         return {
-            "code":    body.get("code", ""),
+            "code": body.get("code", ""),
             "message": body.get("message", str(exc)),
         }
     except Exception:

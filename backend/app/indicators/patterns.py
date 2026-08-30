@@ -22,49 +22,55 @@ logger = logging.getLogger(__name__)
 
 # ─── 數據類別 ─────────────────────────────────────────────────────────────────
 
+
 class PatternType(str, Enum):
     """K 線形態枚舉"""
-    DOJI = "doji"                     # 十字星
-    HAMMER = "hammer"                 # 錘子線
-    HANGING_MAN = "hanging_man"       # 上吊線
-    BULLISH_ENGULFING = "bullish_engulfing"   # 看漲吞噬
-    BEARISH_ENGULFING = "bearish_engulfing"   # 看跌吞噬
-    MORNING_STAR = "morning_star"     # 晨星
-    EVENING_STAR = "evening_star"     # 暮星
+
+    DOJI = "doji"  # 十字星
+    HAMMER = "hammer"  # 錘子線
+    HANGING_MAN = "hanging_man"  # 上吊線
+    BULLISH_ENGULFING = "bullish_engulfing"  # 看漲吞噬
+    BEARISH_ENGULFING = "bearish_engulfing"  # 看跌吞噬
+    MORNING_STAR = "morning_star"  # 晨星
+    EVENING_STAR = "evening_star"  # 暮星
     THREE_WHITE_SOLDIERS = "three_white_soldiers"  # 三白兵
-    THREE_BLACK_CROWS = "three_black_crows"        # 三黑鴉
+    THREE_BLACK_CROWS = "three_black_crows"  # 三黑鴉
     NONE = "none"
 
 
 @dataclass
 class CandlestickPattern:
     """K 線形態"""
+
     pattern_type: PatternType
     start_idx: int
     end_idx: int
-    strength: float          # 1.0 ~ 3.0
-    direction: str           # "bullish" / "bearish" / "neutral"
+    strength: float  # 1.0 ~ 3.0
+    direction: str  # "bullish" / "bearish" / "neutral"
 
 
 @dataclass
 class SupportResistance:
     """支撐/阻力位"""
+
     level: float
-    level_type: str         # "support" / "resistance"
-    touch_count: int        # 被觸碰次數
+    level_type: str  # "support" / "resistance"
+    touch_count: int  # 被觸碰次數
     last_touch_idx: int
 
 
 @dataclass
 class TrendScore:
     """綜合趨勢評分"""
-    score: float             # -100 到 100
-    trend: str               # "bullish" / "bearish" / "neutral"
-    confidence: float        # 0.0 ~ 1.0
+
+    score: float  # -100 到 100
+    trend: str  # "bullish" / "bearish" / "neutral"
+    confidence: float  # 0.0 ~ 1.0
     breakdown: dict[str, float]
 
 
 # ─── 形態偵測器封裝類 ────────────────────────────────────────────────────────
+
 
 class PatternDetector:
     """
@@ -110,6 +116,7 @@ class TrendScorer:
 
 
 # ─── 形態識別 ─────────────────────────────────────────────────────────────────
+
 
 def _ohlc(series, idx) -> tuple:
     """取第 idx 根 K 線的 OHLC"""
@@ -168,33 +175,49 @@ def detect_patterns(df, min_strength: float = 1.0) -> list[CandlestickPattern]:
 
         # 十字星
         if _is_doji(o1, c1, h1, l1):
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.DOJI,
-                start_idx=i, end_idx=i,
-                strength=1.5, direction="neutral",
-            ))
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.DOJI,
+                    start_idx=i,
+                    end_idx=i,
+                    strength=1.5,
+                    direction="neutral",
+                )
+            )
 
         # 錘子線
         if _is_hammer(o1, c1, h1, l1):
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.HAMMER,
-                start_idx=i, end_idx=i,
-                strength=2.0, direction="bullish",
-            ))
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.HAMMER,
+                    start_idx=i,
+                    end_idx=i,
+                    strength=2.0,
+                    direction="bullish",
+                )
+            )
 
         # 吞噬
         if _is_bullish_engulfing(o1, c1, o2, c2):
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.BULLISH_ENGULFING,
-                start_idx=i, end_idx=i + 1,
-                strength=2.5, direction="bullish",
-            ))
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.BULLISH_ENGULFING,
+                    start_idx=i,
+                    end_idx=i + 1,
+                    strength=2.5,
+                    direction="bullish",
+                )
+            )
         if _is_bearish_engulfing(o1, c1, o2, c2):
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.BEARISH_ENGULFING,
-                start_idx=i, end_idx=i + 1,
-                strength=2.5, direction="bearish",
-            ))
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.BEARISH_ENGULFING,
+                    start_idx=i,
+                    end_idx=i + 1,
+                    strength=2.5,
+                    direction="bearish",
+                )
+            )
 
     # 三根 K 線形態（晨星/暮星/三白兵/三黑鴉）
     for i in range(n - 2):
@@ -203,41 +226,68 @@ def detect_patterns(df, min_strength: float = 1.0) -> list[CandlestickPattern]:
         o3, _h3, _l3, c3 = _ohlc(df, i + 2)
 
         # 晨星（看漲）
-        if c1 < o1 and abs(c2 - o2) < (o2 - c2 if o2 != c2 else 1) * 0.5 and c3 > o3 and c3 > (o1 + c1) / 2:
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.MORNING_STAR,
-                start_idx=i, end_idx=i + 2,
-                strength=3.0, direction="bullish",
-            ))
+        if (
+            c1 < o1
+            and abs(c2 - o2) < (o2 - c2 if o2 != c2 else 1) * 0.5
+            and c3 > o3
+            and c3 > (o1 + c1) / 2
+        ):
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.MORNING_STAR,
+                    start_idx=i,
+                    end_idx=i + 2,
+                    strength=3.0,
+                    direction="bullish",
+                )
+            )
 
         # 暮星（看跌）
-        if c1 > o1 and abs(c2 - o2) < (c2 - o2 if c2 != o2 else 1) * 0.5 and c3 < o3 and c3 < (o1 + c1) / 2:
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.EVENING_STAR,
-                start_idx=i, end_idx=i + 2,
-                strength=3.0, direction="bearish",
-            ))
+        if (
+            c1 > o1
+            and abs(c2 - o2) < (c2 - o2 if c2 != o2 else 1) * 0.5
+            and c3 < o3
+            and c3 < (o1 + c1) / 2
+        ):
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.EVENING_STAR,
+                    start_idx=i,
+                    end_idx=i + 2,
+                    strength=3.0,
+                    direction="bearish",
+                )
+            )
 
         # 三白兵
         if c1 > o1 and c2 > o2 and c3 > o3 and c1 > c2 > c3:
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.THREE_WHITE_SOLDIERS,
-                start_idx=i, end_idx=i + 2,
-                strength=3.0, direction="bullish",
-            ))
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.THREE_WHITE_SOLDIERS,
+                    start_idx=i,
+                    end_idx=i + 2,
+                    strength=3.0,
+                    direction="bullish",
+                )
+            )
 
         # 三黑鴉
         if c1 < o1 and c2 < o2 and c3 < o3 and c1 < c2 < c3:
-            patterns.append(CandlestickPattern(
-                pattern_type=PatternType.THREE_BLACK_CROWS,
-                start_idx=i, end_idx=i + 2,
-                strength=3.0, direction="bearish",
-            ))
+            patterns.append(
+                CandlestickPattern(
+                    pattern_type=PatternType.THREE_BLACK_CROWS,
+                    start_idx=i,
+                    end_idx=i + 2,
+                    strength=3.0,
+                    direction="bearish",
+                )
+            )
 
     return [p for p in patterns if p.strength >= min_strength]
 
 
 # ─── 支撐阻力位 ───────────────────────────────────────────────────────────────
+
 
 def find_support_resistance(
     df,
@@ -300,12 +350,14 @@ def find_support_resistance(
         for cluster in clusters:
             if len(cluster) >= min_touches:
                 avg_level = np.mean([e[1] for e in cluster])
-                levels.append(SupportResistance(
-                    level=float(avg_level),
-                    level_type=level_type,
-                    touch_count=len(cluster),
-                    last_touch_idx=int(cluster[-1][0]),
-                ))
+                levels.append(
+                    SupportResistance(
+                        level=float(avg_level),
+                        level_type=level_type,
+                        touch_count=len(cluster),
+                        last_touch_idx=int(cluster[-1][0]),
+                    )
+                )
 
     aggregate_levels(find_local_max(highs), "resistance", tolerance)
     aggregate_levels(find_local_min(lows), "support", tolerance)
@@ -315,6 +367,7 @@ def find_support_resistance(
 
 
 # ─── 綜合趨勢評分 ─────────────────────────────────────────────────────────────
+
 
 def compute_trend_score(
     df,
@@ -348,10 +401,10 @@ def compute_trend_score(
     ma_l = np.full(n, np.nan)
     if n >= ma_short:
         for i in range(ma_short - 1, n):
-            ma_s[i] = np.mean(closes[i - ma_short + 1:i + 1])
+            ma_s[i] = np.mean(closes[i - ma_short + 1 : i + 1])
     if n >= ma_long:
         for i in range(ma_long - 1, n):
-            ma_l[i] = np.mean(closes[i - ma_long + 1:i + 1])
+            ma_l[i] = np.mean(closes[i - ma_long + 1 : i + 1])
 
     ma_score = 0.0
     if n >= ma_long:
@@ -360,7 +413,11 @@ def compute_trend_score(
             diff = ma_s[valid][-1] - ma_l[valid][-1]
             diff_prev = ma_s[valid][-2] - ma_l[valid][-2]
             # 價格高於兩條均線，且均線多頭排列
-            ma_score = 40 if diff > 0 and diff > diff_prev else (-40 if diff < 0 and diff < diff_prev else 0)
+            ma_score = (
+                40
+                if diff > 0 and diff > diff_prev
+                else (-40 if diff < 0 and diff < diff_prev else 0)
+            )
     breakdown["ma_direction"] = ma_score
 
     # 2. 動量（RSI）
@@ -369,13 +426,21 @@ def compute_trend_score(
         if i < 14:
             rsi_vals.append(np.nan)
         else:
-            gains = np.where(np.diff(closes[max(0, i - 14):i + 1]) > 0,
-                             np.diff(closes[max(0, i - 14):i + 1]), 0)
-            losses = np.where(np.diff(closes[max(0, i - 14):i + 1]) < 0,
-                              -np.diff(closes[max(0, i - 14):i + 1]), 0)
+            gains = np.where(
+                np.diff(closes[max(0, i - 14) : i + 1]) > 0,
+                np.diff(closes[max(0, i - 14) : i + 1]),
+                0,
+            )
+            losses = np.where(
+                np.diff(closes[max(0, i - 14) : i + 1]) < 0,
+                -np.diff(closes[max(0, i - 14) : i + 1]),
+                0,
+            )
             avg_gain = np.mean(gains) if len(gains) > 0 else 0
             avg_loss = np.mean(losses) if len(losses) > 0 else 0
-            rsi_vals.append(50 if avg_loss == 0 else 100 - (100 / (1 + avg_gain / max(avg_loss, 1e-9))))
+            rsi_vals.append(
+                50 if avg_loss == 0 else 100 - (100 / (1 + avg_gain / max(avg_loss, 1e-9)))
+            )
 
     rsi_arr = np.array(rsi_vals)
     momentum_score = 0.0
@@ -390,7 +455,9 @@ def compute_trend_score(
     patterns = detect_patterns(df, min_strength=2.0)
     bullish_count = sum(1 for p in patterns if p.direction == "bullish")
     bearish_count = sum(1 for p in patterns if p.direction == "bearish")
-    pattern_score = 20 if bullish_count > bearish_count else (-20 if bearish_count > bullish_count else 0)
+    pattern_score = (
+        20 if bullish_count > bearish_count else (-20 if bearish_count > bullish_count else 0)
+    )
     breakdown["patterns"] = pattern_score
 
     # 4. 成交量（如果有 volume）

@@ -7,6 +7,7 @@ structures and routes them through the decision flow with source=external.
 External signals are governed by the T055 kill-switch: when trading is
 disabled or in dry-run, signals are recorded but no real orders are submitted.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -80,7 +81,7 @@ async def _store_external_decision(decision_data: dict) -> int | None:
             await db.commit()
             await db.refresh(decision)
             return decision.id
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning("Could not store external decision in DB: %s", e)
         return None
 
@@ -150,7 +151,7 @@ async def receive_webhook_signal(
     else:
         action_taken = "accepted"
         logger.info(
-            "External webhook signal accepted (source=external, live): %s %s -> routing to execution",
+            "External webhook signal accepted (source=external, live): %s %s -> routing to execution",  # noqa: E501
             webhook_signal.action.value,
             webhook_signal.symbol,
         )

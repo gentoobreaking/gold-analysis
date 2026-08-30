@@ -7,6 +7,7 @@ by :mod:`app.ml.ops` and :mod:`app.trading.execution`.
 Kept in the ``app.routers`` namespace package (no ``__init__``) so importing it does
 not pull in the API routes package that constructs ``Settings`` at import time.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -52,6 +53,7 @@ ab_test_engine = ABTestEngine()
 # 建立一個預設實驗（使用固定 ID）
 if "default" not in ab_test_engine.experiments:
     from app.ml.ab_testing import ExperimentConfig
+
     default_config = ExperimentConfig(
         name="default_ml_model",
         variants=["model_a", "model_b"],
@@ -59,6 +61,7 @@ if "default" not in ab_test_engine.experiments:
     )
     # 使用固定 ID "default"
     ab_test_engine.experiments["default"] = default_config
+
 
 def _to_df(prices: list[dict[str, Any]]) -> pd.DataFrame:
     return pd.DataFrame(prices)
@@ -77,27 +80,30 @@ def ab_assign(payload: ABAssignIn) -> dict[str, Any]:
     config = ab_test_engine.experiments.get(exp_id)
     if not config:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail=f"Experiment {exp_id} not found")
-    
+
     # 確定性分流：基於 user_id hash
     import hashlib
+
     hash_val = int(hashlib.md5(f"{exp_id}:{payload.user_id}".encode()).hexdigest(), 16)
     rnd = hash_val / (2**128)
     cumulative = 0.0
-    for variant, weight in zip(config.variants, config.traffic_split):
+    for variant, weight in zip(config.variants, config.traffic_split, strict=False):
         cumulative += weight
         if rnd <= cumulative:
             assigned = variant
             break
     else:
         assigned = config.variants[-1]
-    
+
     return {
         "experiment_id": exp_id,
         "variant": assigned,
         "user_id": payload.user_id,
         "symbol": payload.symbol,
     }
+
 
 @ml_router.post("/monitor")
 def monitor(payload: PricesIn) -> dict[str, Any]:
@@ -108,7 +114,9 @@ def monitor(payload: PricesIn) -> dict[str, Any]:
 @ml_router.post("/retrain")
 def retrain(payload: RetrainIn) -> dict[str, Any]:
     """Retrain only when a trigger (schedule or drift/accuracy alert) is active."""
-    result = run_retrain(_to_df(payload.prices), trigger=payload.trigger, min_samples=payload.min_samples)
+    result = run_retrain(
+        _to_df(payload.prices), trigger=payload.trigger, min_samples=payload.min_samples
+    )
     return result or {"retrained": False, "reason": "no active trigger"}
 
 

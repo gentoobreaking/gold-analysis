@@ -36,7 +36,7 @@ def run_monitor(prices: pd.DataFrame, monitor: ModelMonitor | None = None) -> di
                     "source": "model_monitor",
                 }
             )
-    except Exception:  # noqa: BLE001,S110
+    except Exception:
         pass
     return snapshot
 

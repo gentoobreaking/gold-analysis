@@ -43,18 +43,19 @@ class ModelAPI:
             self.load_latest()
         if not self.feature_engineer:
             self.feature_engineer = FeatureEngineer()
-        
+
         # 1. 轉為 DataFrame
         import pandas as pd
+
         df = pd.DataFrame(raw_data)
-        
+
         # 2. 特徵工程（使用已訓練的特徵）
         features = self.feature_engineer.transform(df)
-        
+
         # 3. 預測
         preds = self.trainer.predict(features)
         probs = self.trainer.predict_proba(features)
-        
+
         # 4. 包裝返回
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -66,14 +67,15 @@ class ModelAPI:
     def retrain(self, data: list[dict[str, Any]], label_key: str = "label") -> TrainingResult:
         """接收新數據進行模型再訓練（增量或全量）"""
         import pandas as pd
+
         df = pd.DataFrame(data)
         y = df[label_key]
         X = df.drop(columns=[label_key])
-        
+
         # 特徵工程（重新擬合）
         self.feature_engineer = FeatureEngineer()
         X_feat = self.feature_engineer.fit_transform(X)
-        
+
         # 訓練配置（使用與第一次相同的模型類型）
         config = TrainingConfig(model_type=self.model_name)
         result = self.trainer.train(X_feat, y, config=config)
@@ -84,16 +86,17 @@ class ModelAPI:
     def evaluate(self, test_data: list[dict[str, Any]], label_key: str = "label") -> dict[str, Any]:
         """使用測試集評估模型並返回完整報告"""
         import pandas as pd
+
         df = pd.DataFrame(test_data)
         y_true = df[label_key]
         X = df.drop(columns=[label_key])
-        
+
         if not self.feature_engineer:
             self.feature_engineer = FeatureEngineer()
         X_feat = self.feature_engineer.transform(X)
         y_pred = self.trainer.predict(X_feat)
         y_proba = self.trainer.predict_proba(X_feat)
-        
+
         report = self.evaluator.evaluate_classification(
             y_true=y_true.values,
             y_pred=y_pred,
@@ -105,6 +108,8 @@ class ModelAPI:
             "report": report.print_report(),
             "metrics": report.metrics,
         }
+
+
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -155,7 +160,7 @@ class DecisionEngine:
             return self._fallback("no trainer configured")
         try:
             model = trainer.load_latest()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return self._fallback(f"model load failed: {exc}")
         try:
             fe = FeatureEngineer()
@@ -184,7 +189,7 @@ class DecisionEngine:
                 top_features=self._explain(model, feat_names),
                 notes="",
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return self._fallback(f"decision error: {exc}")
 
     @staticmethod
@@ -192,7 +197,9 @@ class DecisionEngine:
         importances = getattr(model, "feature_importances_", None)
         if importances is None or not feat_names:
             return []
-        pairs = sorted(zip(feat_names, importances), key=lambda kv: kv[1], reverse=True)[:top_n]
+        pairs = sorted(
+            zip(feat_names, importances, strict=False), key=lambda kv: kv[1], reverse=True
+        )[:top_n]
         return [{"feature": f, "importance": float(i)} for f, i in pairs]
 
     def _fallback(self, reason: str) -> Decision:

@@ -1,6 +1,7 @@
 """
 Authentication middleware and dependencies
 """
+
 from typing import Annotated
 
 from app.db.config import get_db_session
@@ -16,23 +17,23 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),
 ) -> User:
     """
     Get current authenticated user from JWT token.
     Raises 401 if not authenticated or token invalid.
     """
     from app.core.security import verify_token
-    
+
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="未提供認證憑證",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     token = credentials.credentials
-    
+
     # Verify token and get user ID
     payload = verify_token(token)
     if payload is None:
@@ -41,29 +42,29 @@ async def get_current_user(
             detail="無效或過期的憑證",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user_id: int = payload.get("sub")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="無效的令牌負載",
         )
-    
+
     # Fetch user from database
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用戶不存在",
         )
-    
+
     return user
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user),  # noqa: B008
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """
     Get current active user.
@@ -78,7 +79,7 @@ async def get_current_active_user(
 
 
 async def get_current_premium_user(
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
 ) -> User:
     """
     Get current premium user.

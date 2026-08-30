@@ -1,6 +1,7 @@
 """
 Alert request/response schemas
 """
+
 from datetime import datetime
 
 from app.models.alert import AlertType
@@ -8,8 +9,10 @@ from pydantic import BaseModel, Field
 
 # ── Request Schemas ────────────────────────────────────────────────────────────
 
+
 class CreateAlertRequest(BaseModel):
     """Create new alert request"""
+
     alert_type: AlertType = Field(..., description="告警類型")
     asset: str = Field(default="GOLD", description="資產符號")
     target_price: float = Field(..., gt=0, description="目標價格")
@@ -18,14 +21,17 @@ class CreateAlertRequest(BaseModel):
 
 class UpdateAlertRequest(BaseModel):
     """Update alert request"""
+
     target_price: float | None = Field(None, gt=0)
     is_active: bool | None = None
 
 
 # ── Response Schemas ────────────────────────────────────────────────────────────
 
+
 class AlertResponse(BaseModel):
     """Alert response"""
+
     id: int
     user_id: int
     alert_type: AlertType
@@ -42,6 +48,7 @@ class AlertResponse(BaseModel):
 
 class AlertListResponse(BaseModel):
     """Alert list response with pagination"""
+
     items: list[AlertResponse]
     total: int
     page: int
@@ -50,6 +57,7 @@ class AlertListResponse(BaseModel):
 
 class AlertTriggeredEvent(BaseModel):
     """Alert triggered event"""
+
     alert_id: int
     asset: str
     alert_type: AlertType

@@ -15,72 +15,69 @@ logger = logging.getLogger(__name__)
 
 class OutlierDetector:
     """異常值檢測器"""
-    
+
     def __init__(self):
         self.settings = get_cleaning_settings()
         self._last_stats: dict[str, Any] = {}
-    
+
     def detect_zscore(
-        self,
-        data: list[dict[str, Any]],
-        value_field: str = "price",
-        threshold: float | None = None
+        self, data: list[dict[str, Any]], value_field: str = "price", threshold: float | None = None
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         使用 Z-score 方法檢測異常值
-        
+
         Z-score = (x - mean) / std
         絕對值 > threshold 視為異常
-        
+
         Args:
             data: 數據列表
             value_field: 數值字段名
             threshold: Z-score 閾值（預設從配置讀取）
-            
+
         Returns:
             (附加異常標記的數據, 檢測統計)
         """
         if threshold is None:
             threshold = self.settings.zscore_threshold
-        
+
         # 提取有效值
         valid_data = [item for item in data if item.get(value_field) is not None]
-        
+
         if len(valid_data) < 3:
             return data, {"outlier_count": 0, "method": "zscore", "reason": "insufficient data"}
-        
+
         values = np.array([item[value_field] for item in valid_data])
-        
+
         # 計算 Z-score
         mean = np.mean(values)
         std = np.std(values)
-        
+
         if std == 0:
             logger.warning("Standard deviation is 0, cannot compute Z-score")
             return data, {"outlier_count": 0, "method": "zscore", "reason": "std=0"}
-        
+
         z_scores = (values - mean) / std
-        
+
         # 建立 valid_data 索引映射（避免重複 price 造成混淆）
         # valid_indices[i] = valid_data[i] 在原始 data 中的 index
         valid_indices = [i for i, item in enumerate(data) if item.get(value_field) is not None]
-        
+
         # 標記異常值
         outlier_count = 0
         result = []
-        
+
         for i, item in enumerate(data.copy()):
             value = item.get(value_field)
-            
+
             if value is None:
                 result.append(item)
                 continue
-            
+
             # 查找此 item 在 valid_data 中的位置
             try:
                 valid_data_idx = valid_indices.index(i)
                 z = z_scores[valid_data_idx]
-                
+
                 if abs(z) > threshold:
                     outlier_count += 1
                     new_item = item.copy()
@@ -93,9 +90,9 @@ class OutlierDetector:
                     result.append(item)
             except ValueError:
                 result.append(item)
-        
+
         logger.info(f"Z-score detection found {outlier_count} outliers (threshold={threshold})")
-        
+
         return result, {
             "outlier_count": outlier_count,
             "method": "zscore",
@@ -104,10 +101,10 @@ class OutlierDetector:
             "std": round(std, 4),
             "bounds": {
                 "lower": round(mean - threshold * std, 4),
-                "upper": round(mean + threshold * std, 4)
-            }
+                "upper": round(mean + threshold * std, 4),
+            },
         }
-    
+
     def detect_iqr(
         self,
         data: list[dict[str, Any]],
@@ -118,15 +115,15 @@ class OutlierDetector:
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         使用 IQR (四分位距) 方法檢測異常值
-        
+
         IQR = Q3 - Q1
         低於 Q1 - multiplier*IQR 或 高於 Q3 + multiplier*IQR 視為異常
-        
+
         Args:
             data: 數據列表
             value_field: 數值字段名
             multiplier: IQR 倍數（預設從配置讀取）
-            
+
         Returns:
             (附加異常標記的數據, 檢測統計)
         """
@@ -172,13 +169,17 @@ class OutlierDetector:
                 if not return_indices:
                     new_item = item.copy()
                     new_item["_is_outlier"] = True
-                    new_item["_outlier_iqr"] = round(value - q1, 4) if value < q1 else round(value - q3, 4)
+                    new_item["_outlier_iqr"] = (
+                        round(value - q1, 4) if value < q1 else round(value - q3, 4)
+                    )
                     new_item["_outlier_method"] = "iqr"
                     result.append(new_item)
-                logger.debug(f"IQR outlier detected: value={value}, bounds=[{lower_bound:.2f}, {upper_bound:.2f}]")
+                logger.debug(
+                    f"IQR outlier detected: value={value}, bounds=[{lower_bound:.2f}, {upper_bound:.2f}]"  # noqa: E501
+                )
             else:
                 result.append(item)
-        
+
         logger.info(f"IQR detection found {outlier_count} outliers (multiplier={multiplier})")
 
         stats = {
@@ -188,10 +189,7 @@ class OutlierDetector:
             "q1": round(q1, 4),
             "q3": round(q3, 4),
             "iqr": round(iqr, 4),
-            "bounds": {
-                "lower": round(lower_bound, 4),
-                "upper": round(upper_bound, 4)
-            }
+            "bounds": {"lower": round(lower_bound, 4), "upper": round(upper_bound, 4)},
         }
 
         if return_indices:
@@ -200,40 +198,38 @@ class OutlierDetector:
 
         self._last_stats = stats
         return result, stats
-    
+
     def detect_combined(
-        self,
-        data: list[dict[str, Any]],
-        value_field: str = "price"
+        self, data: list[dict[str, Any]], value_field: str = "price"
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """
         組合檢測：同時使用 Z-score 和 IQR
-        
+
         兩種方法都標記為異常才算異常
-        
+
         Args:
             data: 數據列表
             value_field: 數值字段名
-            
+
         Returns:
             (附加異常標記的數據, 檢測統計)
         """
         # 先用 Z-score
         data_zscore, stats_zscore = self.detect_zscore(data, value_field)
-        
+
         # 再用 IQR
         data_iqr, stats_iqr = self.detect_iqr(data, value_field)
-        
+
         # 合併結果
         outlier_count = 0
         result = []
-        
+
         for i, item in enumerate(data):
             zscore_outlier = data_zscore[i].get("_is_outlier", False)
             iqr_outlier = data_iqr[i].get("_is_outlier", False)
-            
+
             new_item = item.copy()
-            
+
             # 組合邏輯：兩種方法都認為是異常才算
             if zscore_outlier and iqr_outlier:
                 new_item["_is_outlier"] = True
@@ -243,32 +239,29 @@ class OutlierDetector:
                 new_item["_is_outlier_zscore_only"] = True
             elif iqr_outlier:
                 new_item["_is_outlier_iqr_only"] = True
-            
+
             result.append(new_item)
-        
+
         return result, {
             "outlier_count": outlier_count,
             "method": "combined",
             "zscore_outliers": stats_zscore["outlier_count"],
             "iqr_outliers": stats_iqr["outlier_count"],
             "zscore_stats": stats_zscore,
-            "iqr_stats": stats_iqr
+            "iqr_stats": stats_iqr,
         }
-    
+
     def get_outliers_only(
-        self,
-        data: list[dict[str, Any]],
-        value_field: str = "price",
-        method: str = "zscore"
+        self, data: list[dict[str, Any]], value_field: str = "price", method: str = "zscore"
     ) -> list[dict[str, Any]]:
         """
         僅返回異常值列表
-        
+
         Args:
             data: 數據列表
             value_field: 數值字段名
             method: 檢測方法 ("zscore", "iqr", "combined")
-            
+
         Returns:
             異常值列表
         """
@@ -280,21 +273,19 @@ class OutlierDetector:
             result, _ = self.detect_combined(data, value_field)
         else:
             raise ValueError(f"Unknown method: {method}")
-        
+
         return [item for item in result if item.get("_is_outlier", False)]
 
     def remove_outliers(
-        self,
-        data: list[dict[str, Any]],
-        outlier_indices: list[int]
+        self, data: list[dict[str, Any]], outlier_indices: list[int]
     ) -> list[dict[str, Any]]:
         """
         移除指定的異常值記錄
-        
+
         Args:
             data: 數據列表
             outlier_indices: 需要移除的記錄索引列表
-            
+
         Returns:
             移除異常值後的數據列表
         """

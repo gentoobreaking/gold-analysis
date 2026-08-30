@@ -100,7 +100,7 @@ class ModelHealthChecker:
         # 4. 漂移檢測
         if not self.drift_detector.reference_stats:
             self.drift_detector.fit_reference(X)
-            drift = {k: False for k in X.columns}
+            drift = dict.fromkeys(X.columns, False)
         else:
             drift = self.drift_detector.check(X)
 
@@ -152,6 +152,6 @@ class ModelMonitor:
                     alerts.append(f"data_drift:{feat}")
         try:
             out["health"] = self.health.health_check(data, label_key="label")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             out["health"] = {"error": str(exc)}
         return out

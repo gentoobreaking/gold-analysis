@@ -2,6 +2,7 @@
 Database configuration module
 Handles PostgreSQL, InfluxDB, and Redis connections
 """
+
 from collections.abc import AsyncGenerator
 
 from influxdb_client import InfluxDBClient
@@ -13,27 +14,27 @@ from sqlalchemy.orm import DeclarativeBase
 
 class Settings(BaseSettings):
     """Database configuration settings"""
-    
+
     # Debug mode
     debug: bool = False
-    
+
     # PostgreSQL
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/gold_analysis"
-    
+
     # InfluxDB
     influxdb_url: str = "http://localhost:8086"
     influxdb_token: str = "my-token"
     influxdb_org: str = "gold-analysis"
     influxdb_bucket: str = "market-data"
-    
+
     class Config:
         env_file = ".env"
         extra = "ignore"
-    
 
 
 # Global settings instance
 settings = Settings()
+
 
 # SQLAlchemy Base for models
 class Base(DeclarativeBase):

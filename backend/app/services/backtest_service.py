@@ -2,6 +2,7 @@
 Backtest Service - 決策回測系統
 實現歷史決策回放、績效分析
 """
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -17,21 +18,23 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BacktestTrade:
     """回測交易記錄"""
+
     entry_time: datetime
     exit_time: datetime | None
-    direction: str          # buy / sell
+    direction: str  # buy / sell
     entry_price: float
     exit_price: float | None
     quantity: float
-    pnl: float | None   # 僅平倉後有值
+    pnl: float | None  # 僅平倉後有值
     pnl_pct: float | None
     decision_id: int
-    status: str = "open"   # open / closed
+    status: str = "open"  # open / closed
 
 
 @dataclass
 class BacktestResult:
     """回測結果"""
+
     portfolio_id: int
     start_date: datetime
     end_date: datetime
@@ -117,9 +120,9 @@ class BacktestService:
         end_date: datetime,
         initial_capital: float,
         asset: str = "GOLD",
-        position_size: float = 0.1,       # 每次投入資金比例
-        stop_loss_pct: float = 5.0,       # 止損 %
-        take_profit_pct: float = 10.0,    # 止盈 %
+        position_size: float = 0.1,  # 每次投入資金比例
+        stop_loss_pct: float = 5.0,  # 止損 %
+        take_profit_pct: float = 10.0,  # 止盈 %
     ) -> BacktestResult:
         """
         執行回測
@@ -149,8 +152,10 @@ class BacktestService:
 
         # 取得歷史決策
         decisions = await self.get_decisions(
-            portfolio_id, start_date, end_date,
-            decision_types=[DecisionType.BUY, DecisionType.SELL, DecisionType.HOLD]
+            portfolio_id,
+            start_date,
+            end_date,
+            decision_types=[DecisionType.BUY, DecisionType.SELL, DecisionType.HOLD],
         )
 
         if not decisions:
@@ -166,9 +171,11 @@ class BacktestService:
         position_open = False
 
         # 模擬日線遍歷（每個決策一次，或按日）
-        for day_count, decision in enumerate(decisions):
+        for _day_count, decision in enumerate(decisions):
             # 模擬價格變動（隨機漫步）
-            current_price = max(100, current_price * (1 + (hash(str(decision.id)) % 100 - 50) / 1000))
+            current_price = max(
+                100, current_price * (1 + (hash(str(decision.id)) % 100 - 50) / 1000)
+            )
             market_prices[decision.asset] = current_price
 
             # 根據決策執行交易
@@ -182,18 +189,20 @@ class BacktestService:
                     entry_time = decision.created_at
                     position_open = True
 
-                    trades.append(BacktestTrade(
-                        entry_time=entry_time,
-                        exit_time=None,
-                        direction="buy",
-                        entry_price=entry_price,
-                        exit_price=None,
-                        quantity=quantity,
-                        pnl=None,
-                        pnl_pct=None,
-                        decision_id=decision.id,
-                        status="open",
-                    ))
+                    trades.append(
+                        BacktestTrade(
+                            entry_time=entry_time,
+                            exit_time=None,
+                            direction="buy",
+                            entry_price=entry_price,
+                            exit_price=None,
+                            quantity=quantity,
+                            pnl=None,
+                            pnl_pct=None,
+                            decision_id=decision.id,
+                            status="open",
+                        )
+                    )
 
             elif decision.decision_type == DecisionType.SELL and position_open:
                 exit_price = current_price
@@ -256,7 +265,8 @@ class BacktestService:
                 "direction": t.direction,
                 "pnl": t.pnl or 0,
             }
-            for t in trades if t.status == "closed"
+            for t in trades
+            if t.status == "closed"
         ]
 
         analyzer = PerformanceAnalyzer(risk_free_rate=0.02)
@@ -297,20 +307,22 @@ class BacktestService:
         replay = []
 
         for d in decisions:
-            replay.append({
-                "id": d.id,
-                "created_at": d.created_at.isoformat(),
-                "type": d.decision_type.value,
-                "asset": d.asset,
-                "signal_strength": d.signal_strength,
-                "confidence": d.confidence,
-                "price_target": d.price_target,
-                "stop_loss": d.stop_loss,
-                "reason_zh": d.reason_zh,
-                "reason_en": d.reason_en,
-                "is_executed": d.is_executed,
-                "executed_at": d.executed_at.isoformat() if d.executed_at else None,
-            })
+            replay.append(
+                {
+                    "id": d.id,
+                    "created_at": d.created_at.isoformat(),
+                    "type": d.decision_type.value,
+                    "asset": d.asset,
+                    "signal_strength": d.signal_strength,
+                    "confidence": d.confidence,
+                    "price_target": d.price_target,
+                    "stop_loss": d.stop_loss,
+                    "reason_zh": d.reason_zh,
+                    "reason_en": d.reason_en,
+                    "is_executed": d.is_executed,
+                    "executed_at": d.executed_at.isoformat() if d.executed_at else None,
+                }
+            )
 
         return replay
 

@@ -11,6 +11,8 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
 class DataTools:
     """
     數據獲取工具集
@@ -238,19 +240,19 @@ class DataTools:
                 classification = entry.get("value_classification", "")
                 sentiment = "Greed" if value >= 55 else ("Fear" if value <= 45 else "Neutral")
                 return {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "available": True,
-                "source": "alternative.me",
-                "gold": {
-                    "fear_greed_index": value,
-                    "sentiment": sentiment,
-                    "classification": classification,
-                    "positioning": "Unknown",
-                    "etf_flow": None,
-                },
-                "crypto": {"fear_greed_index": value, "sentiment": sentiment},
-            }
-        except Exception as e:  # noqa: BLE001
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "available": True,
+                    "source": "alternative.me",
+                    "gold": {
+                        "fear_greed_index": value,
+                        "sentiment": sentiment,
+                        "classification": classification,
+                        "positioning": "Unknown",
+                        "etf_flow": None,
+                    },
+                    "crypto": {"fear_greed_index": value, "sentiment": sentiment},
+                }
+        except Exception as e:
             logger.warning("Sentiment fetch failed, marking unavailable: %s", e)
             return {
                 "timestamp": datetime.now(timezone.utc).isoformat(),

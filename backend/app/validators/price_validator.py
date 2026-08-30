@@ -22,7 +22,7 @@ class PriceValidator:
             ts = ts.replace(tzinfo=timezone.utc)
         if ts > now:
             return False  # 未來時間
-        if (now - ts).days > 365:  # noqa: SIM103
+        if (now - ts).days > 365:
             return False  # 超過1年
         return True
 

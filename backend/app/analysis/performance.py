@@ -2,6 +2,7 @@
 Performance Analysis Module - 績效指標計算
 計算收益率、勝率、最大回撤、夏普比率等
 """
+
 import logging
 from dataclasses import dataclass, field
 
@@ -13,22 +14,23 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PerformanceMetrics:
     """績效指標 dataclass"""
-    total_return: float          # 總收益率 %
-    annualized_return: float     # 年化收益率 %
-    total_trades: int            # 總交易次數
-    winning_trades: int          # 盈利交易次數
-    losing_trades: int           # 虧損交易次數
-    win_rate: float              # 勝率 %
-    avg_win: float               # 平均盈利金額
-    avg_loss: float              # 平均虧損金額
-    profit_factor: float         # 盈虧比
-    max_drawdown: float          # 最大回撤 %
-    max_drawdown_duration: int   # 最大回撤持續天數
-    sharpe_ratio: float          # 夏普比率
-    calmar_ratio: float          # 卡爾瑪比率
-    sortino_ratio: float         # 索提諾比率
-    total_return_pct: float      # 總收益 %
-    running_balance: float        # 期末餘額
+
+    total_return: float  # 總收益率 %
+    annualized_return: float  # 年化收益率 %
+    total_trades: int  # 總交易次數
+    winning_trades: int  # 盈利交易次數
+    losing_trades: int  # 虧損交易次數
+    win_rate: float  # 勝率 %
+    avg_win: float  # 平均盈利金額
+    avg_loss: float  # 平均虧損金額
+    profit_factor: float  # 盈虧比
+    max_drawdown: float  # 最大回撤 %
+    max_drawdown_duration: int  # 最大回撤持續天數
+    sharpe_ratio: float  # 夏普比率
+    calmar_ratio: float  # 卡爾瑪比率
+    sortino_ratio: float  # 索提諾比率
+    total_return_pct: float  # 總收益 %
+    running_balance: float  # 期末餘額
 
     # 可選明細
     equity_curve: list[float] = field(default_factory=list)
@@ -152,9 +154,7 @@ class PerformanceAnalyzer:
         dd = (equity - peak) / peak * 100
         return [round(float(x), 4) for x in dd.tolist()]
 
-    def _trade_stats(
-        self, trade_log: list[dict]
-    ) -> tuple[int, int, int, float, float, float]:
+    def _trade_stats(self, trade_log: list[dict]) -> tuple[int, int, int, float, float, float]:
         """計算交易統計"""
         if not trade_log:
             return 0, 0, 0, 0.0, 0.0, 0.0
@@ -175,9 +175,7 @@ class PerformanceAnalyzer:
 
         return trades, wins, losses, avg_win, avg_loss, pf
 
-    def _sharpe_ratio(
-        self, returns: np.ndarray, periods_per_year: int
-    ) -> float:
+    def _sharpe_ratio(self, returns: np.ndarray, periods_per_year: int) -> float:
         """計算夏普比率"""
         if len(returns) < 2:
             return 0.0
@@ -187,9 +185,7 @@ class PerformanceAnalyzer:
             return 0.0
         return float(np.mean(excess) / std * np.sqrt(periods_per_year))
 
-    def _sortino_ratio(
-        self, returns: np.ndarray, periods_per_year: int
-    ) -> float:
+    def _sortino_ratio(self, returns: np.ndarray, periods_per_year: int) -> float:
         """計算索提諾比率（只考慮下行偏差）"""
         if len(returns) < 2:
             return 0.0
@@ -202,12 +198,22 @@ class PerformanceAnalyzer:
     def _empty_metrics(self) -> PerformanceMetrics:
         """返回空指標"""
         return PerformanceMetrics(
-            total_return=0.0, annualized_return=0.0,
-            total_trades=0, winning_trades=0, losing_trades=0,
-            win_rate=0.0, avg_win=0.0, avg_loss=0.0, profit_factor=0.0,
-            max_drawdown=0.0, max_drawdown_duration=0,
-            sharpe_ratio=0.0, calmar_ratio=0.0, sortino_ratio=0.0,
-            total_return_pct=0.0, running_balance=0.0,
+            total_return=0.0,
+            annualized_return=0.0,
+            total_trades=0,
+            winning_trades=0,
+            losing_trades=0,
+            win_rate=0.0,
+            avg_win=0.0,
+            avg_loss=0.0,
+            profit_factor=0.0,
+            max_drawdown=0.0,
+            max_drawdown_duration=0,
+            sharpe_ratio=0.0,
+            calmar_ratio=0.0,
+            sortino_ratio=0.0,
+            total_return_pct=0.0,
+            running_balance=0.0,
         )
 
     def summary_text(self, metrics: PerformanceMetrics) -> str:

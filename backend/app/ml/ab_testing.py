@@ -17,9 +17,11 @@ logger = logging.getLogger(__name__)
 
 # ─── 數據模型 ───────────────────────────────────────────────────────
 
+
 @dataclass
 class ExperimentConfig:
     """A/B 測試配置"""
+
     name: str
     variants: list[str]  # 例如 ["v1", "v2"]
     traffic_split: list[float] = field(default_factory=lambda: [0.5, 0.5])
@@ -37,6 +39,7 @@ class ExperimentConfig:
 @dataclass
 class ExperimentRun:
     """單次實驗紀錄（每條決策）"""
+
     experiment_id: str
     variant: str
     timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
@@ -58,6 +61,7 @@ class ExperimentRun:
 
 
 # ─── A/B 測試管理器 ─────────────────────────────────────────────────────
+
 
 class ABTestEngine:
     """管理所有實驗與統計分析"""
@@ -87,7 +91,7 @@ class ABTestEngine:
         """根據 traffic_split 隨機抽樣返回 variant"""
         rnd = random.random()
         cumulative = 0.0
-        for variant, weight in zip(config.variants, config.traffic_split):
+        for variant, weight in zip(config.variants, config.traffic_split, strict=False):
             cumulative += weight
             if rnd <= cumulative:
                 return variant
@@ -106,7 +110,7 @@ class ABTestEngine:
         config = self.experiments.get(exp_id)
         if not config:
             raise ValueError(f"實驗 {exp_id} 不存在")
-        
+
         variant = self._select_variant(config)
         run = ExperimentRun(
             experiment_id=exp_id,
@@ -126,11 +130,11 @@ class ABTestEngine:
         config = self.experiments.get(exp_id)
         if not config:
             raise ValueError(f"實驗 {exp_id} 不存在")
-        
+
         # 過濾相關 run
         relevant = [r for r in self.runs if r.experiment_id == exp_id]
         summary: dict[str, Any] = {"experiment": config.name, "variant_counts": {}, "metrics": {}}
-        
+
         # 統計每個變體的樣本量
         for variant in config.variants:
             variant_runs = [r for r in relevant if r.variant == variant]
@@ -141,7 +145,7 @@ class ABTestEngine:
                 values = [r.metrics.get(metric, 0.0) for r in variant_runs if metric in r.metrics]
                 agg[metric] = sum(values) / len(values) if values else 0.0
             summary["metrics"][variant] = agg
-        
+
         self.logger.info(f"A/B 實驗 {exp_id} 彙總完成")
         return summary
 

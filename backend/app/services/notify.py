@@ -38,7 +38,7 @@ def _email_transport(to: str, subject: str, body: str) -> bool:
                 server.login(s.smtp_user, s.smtp_pass)
             server.send_message(msg)
         return True
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("[notify] email send failed: %s", e)
         return False
 
@@ -54,7 +54,7 @@ def _webhook_transport(url: str, payload: dict[str, Any]) -> bool:
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             return 200 <= resp.status < 300
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("[notify] webhook send failed: %s", e)
         return False
 

@@ -3,6 +3,7 @@
 Every order submission, fill, rejection and position-sync mismatch is appended
 as one JSON line so the audit trail is append-only and trivially queryable.
 """
+
 from __future__ import annotations
 
 import json

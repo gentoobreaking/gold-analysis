@@ -30,9 +30,11 @@ logger = logging.getLogger(__name__)
 
 # ─── 接口數據模型 ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class OrderRequest:
     """下單請求"""
+
     symbol: str
     side: OrderSide
     order_type: OrderType
@@ -47,6 +49,7 @@ class OrderRequest:
 @dataclass
 class OrderResponse:
     """下單響應"""
+
     success: bool
     order: Order | None = None
     error_code: str | None = None
@@ -57,6 +60,7 @@ class OrderResponse:
 @dataclass
 class MarketData:
     """實時市場數據"""
+
     symbol: str
     bid: float
     ask: float
@@ -64,11 +68,11 @@ class MarketData:
     volume: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
     source: str = "mock"
-    
+
     @property
     def spread(self) -> float:
         return self.ask - self.bid
-    
+
     @property
     def mid_price(self) -> float:
         return (self.bid + self.ask) / 2
@@ -76,25 +80,26 @@ class MarketData:
 
 # ─── 交易所接口抽象 ─────────────────────────────────────────────────────────
 
+
 class ExchangeInterface(ABC):
     """
     交易所接口抽象基類
-    
+
     定義所有交易所適配器必須實現的方法。
     子類需實現具體交易所的 API 調用邏輯。
-    
+
     支持的交易所（待實現）:
     - OANDA (forex, commodities)
     - IG Markets (CFD)
     - Interactive Brokers
     - Alpaca (stocks, crypto)
     """
-    
+
     # 交易所元信息
     exchange_name: ClassVar[str] = "abstract"
     supported_order_types: ClassVar[list[OrderType]] = []
     supported_symbols: ClassVar[list[str]] = []
-    
+
     def __init__(
         self,
         api_key: str | None = None,
@@ -104,7 +109,7 @@ class ExchangeInterface(ABC):
     ):
         """
         初始化交易所接口
-        
+
         Args:
             api_key: API Key
             api_secret: API Secret
@@ -115,63 +120,63 @@ class ExchangeInterface(ABC):
         self.api_secret = api_secret
         self.is_demo = is_demo
         self.is_connected = False
-        
+
         # 風控引擎
         self.risk_engine = RiskRuleEngine(risk_config)
-        
+
         # 本地訂單簿（用於模擬模式）
         self._orders: dict[str, Order] = {}
         self._positions: dict[str, Position] = {}
         self._account: AccountBalance | None = None
-        
+
         self.logger = logging.getLogger(f"{__name__}.{self.exchange_name}")
-    
+
     # ─── 連接管理 ────────────────────────────────────────────────────────────
-    
+
     @abstractmethod
     def connect(self) -> bool:
         """
         建立連接
-        
+
         Returns:
             是否連接成功
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def disconnect(self) -> None:
         """關閉連接"""
         raise NotImplementedError
-    
+
     @abstractmethod
     def is_authenticated(self) -> bool:
         """檢查是否已認證"""
         raise NotImplementedError
-    
+
     # ─── 帳戶查詢 ────────────────────────────────────────────────────────────
-    
+
     @abstractmethod
     def get_account(self) -> AccountBalance:
         """獲取帳戶餘額"""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_positions(self) -> list[Position]:
         """獲取所有持倉"""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_position(self, symbol: str) -> Position | None:
         """獲取指定標的持倉"""
         raise NotImplementedError
-    
+
     # ─── 市場數據 ────────────────────────────────────────────────────────────
-    
+
     @abstractmethod
     def get_market_data(self, symbol: str) -> MarketData:
         """獲取實時市場數據"""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_historical_prices(
         self,
@@ -182,14 +187,14 @@ class ExchangeInterface(ABC):
     ) -> list[dict[str, Any]]:
         """獲取歷史價格"""
         raise NotImplementedError
-    
+
     # ─── 訂單操作 ────────────────────────────────────────────────────────────
-    
+
     @abstractmethod
     def submit_order(self, request: OrderRequest) -> OrderResponse:
         """
         提交訂單
-        
+
         完整的下單流程:
         1. 參數驗證
         2. 風控檢查
@@ -197,37 +202,37 @@ class ExchangeInterface(ABC):
         4. 返回結果
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def cancel_order(self, order_id: str) -> bool:
         """取消訂單"""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_order(self, order_id: str) -> Order | None:
         """查詢訂單狀態"""
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_open_orders(self) -> list[Order]:
         """獲取所有未完成訂單"""
         raise NotImplementedError
-    
+
     # ─── 通用工具 ────────────────────────────────────────────────────────────
-    
+
     def _validate_symbol(self, symbol: str) -> None:
         """驗證標的是否受支持"""
         if self.supported_symbols and symbol not in self.supported_symbols:
             raise ValueError(f"標的 {symbol} 不受 {self.exchange_name} 支持")
-    
+
     def _apply_risk_check(self, request: OrderRequest) -> tuple[bool, list]:
         """應用風控檢查"""
         account = self.get_account()
         position = self.get_position(request.symbol)
         open_orders = self.get_open_orders()
-        
+
         price = request.price or self.get_market_data(request.symbol).last
-        
+
         return self.risk_engine.check(
             order_side=request.side.value,
             symbol=request.symbol,
@@ -241,29 +246,31 @@ class ExchangeInterface(ABC):
 
 # ─── 模擬交易所實現 ─────────────────────────────────────────────────────────
 
+
 class MockExchange(ExchangeInterface):
     """
     模擬交易所 - 測試/開發用
-    
+
     在內存中模擬真實交易所行為，
     不需要真實 API 密鑰即可測試整個交易流程。
-    
+
     特性:
     - 訂單簿管理
     - 持倉追蹤
     - 帳戶餘額更新
     - 模擬成交（根據市場價格）
     """
+
     exchange_name: ClassVar[str] = "MOCK"
     supported_order_types: ClassVar[list[OrderType]] = list(OrderType)
     supported_symbols: ClassVar[list[str]] = ["GOLD", "XAUUSD", "GC.CMDTY", "EURUSD"]
-    
+
     def __init__(self, **kwargs):
         super().__init__(is_demo=True, **kwargs)
         self._mock_market: dict[str, MarketData] = {}
         self._trades: list[Trade] = []
         self._base_price = 2000.0  # 黃金基礎價格
-        
+
         # 初始化模擬帳戶
         self._account = AccountBalance(
             total_equity=100000.0,
@@ -273,7 +280,7 @@ class MockExchange(ExchangeInterface):
             realized_pnl_today=0.0,
             exchange=self.exchange_name,
         )
-        
+
         # 初始化市場數據
         for symbol in self.supported_symbols:
             self._mock_market[symbol] = MarketData(
@@ -284,50 +291,51 @@ class MockExchange(ExchangeInterface):
                 volume=10000.0,
                 source=self.exchange_name,
             )
-        
+
         self.logger.info("MockExchange 初始化完成")
-    
+
     def connect(self) -> bool:
         self.is_connected = True
         self.logger.info(f"[{self.exchange_name}] 連接成功 (模擬模式)")
         return True
-    
+
     def disconnect(self) -> None:
         self.is_connected = False
         self.logger.info(f"[{self.exchange_name}] 連接已斷開")
-    
+
     def is_authenticated(self) -> bool:
         return self.is_connected
-    
+
     # ─── 帳戶 ────────────────────────────────────────────────────────────────
-    
+
     def get_account(self) -> AccountBalance:
         """計算實時帳戶餘額（包含未實現盈虧）"""
         total_unrealized = sum(p.unrealized_pnl for p in self._positions.values())
         self._account.unrealized_pnl = total_unrealized
         self._account.total_equity = self._account.cash + total_unrealized
         return self._account
-    
+
     def get_positions(self) -> list[Position]:
         return list(self._positions.values())
-    
+
     def get_position(self, symbol: str) -> Position | None:
         return self._positions.get(symbol)
-    
+
     # ─── 市場數據 ────────────────────────────────────────────────────────────
-    
+
     def get_market_data(self, symbol: str) -> MarketData:
         """返回模擬市場數據（帶隨機微小波動）"""
         import random
+
         base = self._mock_market.get(symbol)
         if not base:
             raise ValueError(f"未知標的: {symbol}")
-        
+
         # 模擬微小價格波動（±0.1%）
         delta = random.uniform(-0.001, 0.001)
         last = base.last * (1 + delta)
         spread = base.spread
-        
+
         return MarketData(
             symbol=symbol,
             bid=last - spread / 2,
@@ -337,7 +345,7 @@ class MockExchange(ExchangeInterface):
             timestamp=datetime.now(timezone.utc),
             source=self.exchange_name,
         )
-    
+
     def get_historical_prices(
         self,
         symbol: str,
@@ -347,27 +355,30 @@ class MockExchange(ExchangeInterface):
     ) -> list[dict[str, Any]]:
         """生成模擬歷史數據"""
         import random
+
         prices = []
         current = self._base_price
         delta_days = (end - start).days or 1
-        
+
         for i in range(min(delta_days, 365)):
             date = start + timedelta(days=i)
             change = random.uniform(-0.02, 0.025)  # 日波動 ±2.5%
             current = current * (1 + change)
-            prices.append({
-                "date": date.isoformat(),
-                "open": current * (1 + random.uniform(-0.005, 0.005)),
-                "high": current * (1 + random.uniform(0, 0.01)),
-                "low": current * (1 + random.uniform(-0.01, 0)),
-                "close": current,
-                "volume": random.uniform(5000, 20000),
-            })
-        
+            prices.append(
+                {
+                    "date": date.isoformat(),
+                    "open": current * (1 + random.uniform(-0.005, 0.005)),
+                    "high": current * (1 + random.uniform(0, 0.01)),
+                    "low": current * (1 + random.uniform(-0.01, 0)),
+                    "close": current,
+                    "volume": random.uniform(5000, 20000),
+                }
+            )
+
         return prices
-    
+
     # ─── 訂單 ────────────────────────────────────────────────────────────────
-    
+
     def submit_order(self, request: OrderRequest) -> OrderResponse:
         """提交模擬訂單"""
         self.logger.info(
@@ -376,7 +387,7 @@ class MockExchange(ExchangeInterface):
             f"{request.order_type.value} "
             f"{request.price or 'MARKET'}"
         )
-        
+
         # 風控檢查
         passed, results = self._apply_risk_check(request)
         if not passed:
@@ -387,11 +398,11 @@ class MockExchange(ExchangeInterface):
                 error_message=blocked[0].message if blocked else "風控阻斷",
                 raw_response={"risk_results": results},
             )
-        
+
         # 創建訂單
         market = self.get_market_data(request.symbol)
         fill_price = request.price or market.last
-        
+
         order = Order(
             order_id=self._generate_order_id(),
             client_order_id=request.client_order_id,
@@ -405,14 +416,14 @@ class MockExchange(ExchangeInterface):
             time_in_force=request.time_in_force,
             exchange=self.exchange_name,
         )
-        
+
         # 模擬立即成交（市價單）或掛單（限價單）
         if request.order_type == OrderType.MARKET:
             order.status = OrderStatus.FILLED
             order.filled_quantity = order.quantity
             order.avg_fill_price = fill_price
             order.commission = fill_price * order.quantity * 0.0002  # 0.02% 手續費
-            
+
             # 更新持倉
             self._update_position(order)
             # 更新帳戶
@@ -427,7 +438,7 @@ class MockExchange(ExchangeInterface):
                 commission=order.commission,
             )
             self._trades.append(trade)
-            
+
             self.logger.info(
                 f"訂單成交: {order.order_id} | "
                 f"{order.side.value.upper()} {order.filled_quantity} "
@@ -436,39 +447,42 @@ class MockExchange(ExchangeInterface):
         else:
             order.status = OrderStatus.SUBMITTED
             self.logger.info(f"掛單成功: {order.order_id}")
-        
+
         self._orders[order.order_id] = order
         return OrderResponse(success=True, order=order)
-    
+
     def cancel_order(self, order_id: str) -> bool:
         order = self._orders.get(order_id)
         if not order:
             return False
-        
+
         if order.is_closed:
             return False
-        
+
         order.status = OrderStatus.CANCELLED
         order.updated_at = datetime.now(timezone.utc)
         self.logger.info(f"訂單已取消: {order_id}")
         return True
-    
+
     def get_order(self, order_id: str) -> Order | None:
         return self._orders.get(order_id)
-    
+
     def get_open_orders(self) -> list[Order]:
         return [o for o in self._orders.values() if not o.is_closed]
-    
+
     # ─── 私有工具 ────────────────────────────────────────────────────────────
-    
+
     def _generate_order_id(self) -> str:
         import uuid
-        return f"MOCK-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
-    
+
+        return (
+            f"MOCK-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        )
+
     def _update_position(self, order: Order) -> None:
         """更新持倉"""
         pos = self._positions.get(order.symbol)
-        
+
         if order.side == OrderSide.BUY:
             if pos is None:
                 self._positions[order.symbol] = Position(
@@ -484,7 +498,7 @@ class MockExchange(ExchangeInterface):
                 total_qty = pos.quantity + order.filled_quantity
                 pos.quantity = total_qty
                 pos.avg_entry_price = total_cost / total_qty
-        
+
         elif order.side == OrderSide.SELL:
             if pos and pos.quantity >= order.filled_quantity:
                 pos.quantity -= order.filled_quantity
@@ -500,14 +514,14 @@ class MockExchange(ExchangeInterface):
                     exchange=self.exchange_name,
                 )
                 del self._positions[order.symbol]
-    
+
     def _update_account(self, order: Order) -> None:
         """更新帳戶餘額"""
         if order.side == OrderSide.BUY:
             self._account.cash -= order.total_value + order.commission
         else:
             self._account.cash += order.total_value - order.commission
-    
+
     def get_trades(self) -> list[Trade]:
         """獲取所有成交記錄"""
         return self._trades
@@ -515,21 +529,22 @@ class MockExchange(ExchangeInterface):
 
 # ─── OANDA 交易所適配器（骨架，設計階段）────────────────────────────────────
 
+
 class OANDAAdapter(ExchangeInterface):
     """
     OANDA 交易所適配器
-    
+
     OANDA 官網: https://www.oanda.com/
     API 文檔: https://developer.oanda.com/
-    
+
     支持:
     - 外匯 (FX)
     - 貴金屬 (GOLD, SILVER)
     - 大宗商品
-    
+
     ⚠️ 注意：此為設計實現，實際使用需要有效的 OANDA 帳戶和 API Token
     """
-    
+
     exchange_name: ClassVar[str] = "OANDA"
     supported_order_types: ClassVar[list[OrderType]] = [
         OrderType.MARKET,
@@ -539,17 +554,20 @@ class OANDAAdapter(ExchangeInterface):
     ]
     supported_symbols: ClassVar[list[str]] = [
         # FX majors
-        "EUR_USD", "GBP_USD", "USD_JPY", "USD_CHF",
+        "EUR_USD",
+        "GBP_USD",
+        "USD_JPY",
+        "USD_CHF",
         # Commodities
         "XAU_USD",  # Gold
         "XAG_USD",  # Silver
         # More symbols...
     ]
-    
+
     # API 端點
     BASE_URL_LIVE = "https://api-oanda.com/v3"
     BASE_URL_DEMO = "https://streaming.oanda.com/v3"
-    
+
     def __init__(
         self,
         account_id: str | None = None,
@@ -560,38 +578,38 @@ class OANDAAdapter(ExchangeInterface):
         super().__init__(api_key=api_key, is_demo=is_demo, **kwargs)
         self.account_id = account_id
         self._session = None  # requests.Session
-    
+
     def connect(self) -> bool:
         if self.is_demo:
             self.logger.warning("OANDA 演示模式：實際不連接真實 API")
             self.is_connected = True
             return True
-        
+
         # TODO: 實現真實的 API 連接
         raise NotImplementedError("請先填入有效的 OANDA API 密鑰")
-    
+
     def disconnect(self) -> None:
         if self._session:
             self._session.close()
         self.is_connected = False
-    
+
     def is_authenticated(self) -> bool:
         return self.is_connected and bool(self.api_key)
-    
+
     def get_account(self) -> AccountBalance:
         # TODO: 調用 GET /v3/accounts/{accountID}
         raise NotImplementedError()
-    
+
     def get_positions(self) -> list[Position]:
         raise NotImplementedError()
-    
+
     def get_position(self, symbol: str) -> Position | None:
         raise NotImplementedError()
-    
+
     def get_market_data(self, symbol: str) -> MarketData:
         # TODO: 調用 GET /v3/accounts/{accountID}/pricing
         raise NotImplementedError()
-    
+
     def get_historical_prices(
         self,
         symbol: str,
@@ -601,17 +619,17 @@ class OANDAAdapter(ExchangeInterface):
     ) -> list[dict[str, Any]]:
         # TODO: 調用 GET /v3/instruments/{instrument}/candles
         raise NotImplementedError()
-    
+
     def submit_order(self, request: OrderRequest) -> OrderResponse:
         # TODO: 調用 POST /v3/accounts/{accountID}/orders
         raise NotImplementedError()
-    
+
     def cancel_order(self, order_id: str) -> bool:
         # TODO: 調用 PUT /v3/accounts/{accountID}/orders/{orderID}/cancel
         raise NotImplementedError()
-    
+
     def get_order(self, order_id: str) -> Order | None:
         raise NotImplementedError()
-    
+
     def get_open_orders(self) -> list[Order]:
         raise NotImplementedError()

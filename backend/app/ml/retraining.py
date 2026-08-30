@@ -5,6 +5,7 @@ accuracy drop -- or a scheduled trigger fires -- retrain on the latest data and
 register the new model version. ``maybe_retrain`` is a no-op (returns ``None``)
 when no trigger is active, so it is safe to call on every cycle.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -42,13 +43,18 @@ class RetrainingOrchestrator:
             alerts = self.monitor.snapshot().get("alerts", [])
         return self._alert_triggers(alerts or [])
 
-    def maybe_retrain(self, prices: pd.DataFrame, trigger: str | None = None) -> dict[str, Any] | None:
+    def maybe_retrain(
+        self, prices: pd.DataFrame, trigger: str | None = None
+    ) -> dict[str, Any] | None:
         if not self.needs_retrain(trigger=trigger):
             return None
         fe = FeatureEngineer()
         data = fe.fit_transform(prices)
         if len(data) < self.min_samples:
-            return {"retrained": False, "reason": f"only {len(data)} samples < min_samples={self.min_samples}"}
+            return {
+                "retrained": False,
+                "reason": f"only {len(data)} samples < min_samples={self.min_samples}",
+            }
         X = data.drop(columns=["date", "label"], errors="ignore")
         y = data["label"]
         report = self.trainer.train(X, y, config=TrainingConfig(model_type=self.model_type))

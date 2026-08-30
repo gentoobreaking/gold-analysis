@@ -29,7 +29,7 @@ class ExchangeClient:
 
     def __init__(self, use_mock: bool = True, **kwargs):
         """初始化交易所客戶端
-        
+
         Args:
             use_mock: 是否使用 MockExchange（開發測試）
             **kwargs: 交給底層 ExchangeInterface 的參數（如 api_key）
@@ -40,7 +40,7 @@ class ExchangeClient:
         else:
             # TODO: 根據配置動態加載實際交易所適配器（OANDA、IG 等）
             raise NotImplementedError("實際交易所適配器尚未實現，請配置 use_mock=True")
-        
+
         self.exchange.connect()
         logger.info(f"ExchangeClient 初始化完成 (use_mock={use_mock})")
 
@@ -67,6 +67,8 @@ class ExchangeClient:
     def close(self) -> None:
         self.exchange.disconnect()
         logger.info("ExchangeClient 已關閉連接")
+
+
 class RestExchangeClient:
     """Generic v20-style REST client (OANDA / IG compatible).
 
@@ -76,7 +78,9 @@ class RestExchangeClient:
     tests can mock HTTP without sockets.
     """
 
-    def __init__(self, base_url: str, api_key: str, account_id: str | None = None, opener: Any = None):
+    def __init__(
+        self, base_url: str, api_key: str, account_id: str | None = None, opener: Any = None
+    ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.account_id = account_id
@@ -86,7 +90,9 @@ class RestExchangeClient:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
-    def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _request(
+        self, method: str, path: str, body: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, headers=self._headers(), method=method)
@@ -157,21 +163,21 @@ class RestExchangeClient:
                 time_in_force=request.time_in_force,
             )
             return OrderResponse(success=ok, order=order, raw_response=resp)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return OrderResponse(success=False, order=None, error_message=str(exc))
 
     def cancel_order(self, order_id: str) -> bool:
         try:
             self._request("PUT", f"/v3/accounts/{self.account_id}/orders/{order_id}/cancel")
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def get_open_orders(self) -> list[Any]:
         try:
             resp = self._request("GET", f"/v3/accounts/{self.account_id}/pendingOrders")
             return resp.get("orders") or []
-        except Exception:  # noqa: BLE001
+        except Exception:
             return []
 
     def close(self) -> None:

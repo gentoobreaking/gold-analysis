@@ -29,10 +29,12 @@ DEFAULT_SIGNAL = 9
 
 # ─── 數據類別 ─────────────────────────────────────────────────────────────────
 
+
 class MACDTrend(str, Enum):
     """MACD 趨勢類型"""
-    BULLISH = "bullish"         # 看多（MACD > 信號線）
-    BEARISH = "bearish"         # 看空（MACD < 信號線）
+
+    BULLISH = "bullish"  # 看多（MACD > 信號線）
+    BEARISH = "bearish"  # 看空（MACD < 信號線）
     WEAKENING_BULL = "weakening_bull"  # 多頭減弱（柱狀圖遞減但仍 > 0）
     STRENGTHENING_BEAR = "strengthening_bear"  # 空頭減弱（柱狀圖遞增但仍 < 0）
     NEUTRAL = "neutral"
@@ -41,7 +43,8 @@ class MACDTrend(str, Enum):
 @dataclass
 class MACDCrossSignal:
     """MACD 交叉信號"""
-    cross_type: str             # "golden" 或 "death"
+
+    cross_type: str  # "golden" 或 "death"
     index: int
     macd_value: float
     signal_value: float
@@ -49,6 +52,7 @@ class MACDCrossSignal:
 
 
 # ─── MACD 計算 ────────────────────────────────────────────────────────────────
+
 
 class MACD:
     """
@@ -96,8 +100,8 @@ class MACD:
         alpha_signal = 2.0 / (self.signal_period + 1)
 
         # EMA 初始化用 SMA
-        ema_fast = np.mean(arr[:self.fast_period])
-        ema_slow = np.mean(arr[:self.slow_period])
+        ema_fast = np.mean(arr[: self.fast_period])
+        ema_slow = np.mean(arr[: self.slow_period])
 
         macd_values = []
         start_idx = self.slow_period - 1
@@ -113,10 +117,10 @@ class MACD:
             return macd_line, signal_line, histogram
 
         # 信號線（MACD 的 EMA）
-        ema_signal = np.mean(macd_values[:self.signal_period])
+        ema_signal = np.mean(macd_values[: self.signal_period])
         signal_start = start_idx + self.signal_period
 
-        for i, val in enumerate(macd_values[self.signal_period:]):
+        for i, val in enumerate(macd_values[self.signal_period :]):
             ema_signal = alpha_signal * val + (1 - alpha_signal) * ema_signal
             idx = signal_start + i
             signal_line[idx] = ema_signal
@@ -136,6 +140,7 @@ def compute_macd(
 
 
 # ─── 趨勢判斷 ─────────────────────────────────────────────────────────────────
+
 
 def determine_macd_trend(
     macd_line: Sequence[float],
@@ -219,20 +224,24 @@ def detect_macd_cross(
         curr = macd[i] - signal[i]
 
         if prev <= 0 and curr > 0:
-            crosses.append(MACDCrossSignal(
-                cross_type="golden",
-                index=i,
-                macd_value=float(macd[i]),
-                signal_value=float(signal[i]),
-                histogram=float(curr),
-            ))
+            crosses.append(
+                MACDCrossSignal(
+                    cross_type="golden",
+                    index=i,
+                    macd_value=float(macd[i]),
+                    signal_value=float(signal[i]),
+                    histogram=float(curr),
+                )
+            )
         elif prev >= 0 and curr < 0:
-            crosses.append(MACDCrossSignal(
-                cross_type="death",
-                index=i,
-                macd_value=float(macd[i]),
-                signal_value=float(signal[i]),
-                histogram=float(curr),
-            ))
+            crosses.append(
+                MACDCrossSignal(
+                    cross_type="death",
+                    index=i,
+                    macd_value=float(macd[i]),
+                    signal_value=float(signal[i]),
+                    histogram=float(curr),
+                )
+            )
 
     return crosses

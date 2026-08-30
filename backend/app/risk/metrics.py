@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ─── 波動率 ────────────────────────────────────────────────────────────────────
 
+
 def calculate_volatility(
     returns: Sequence[float],
     annualize: bool = True,
@@ -43,6 +44,7 @@ def calculate_volatility(
 
 
 # ─── VaR ────────────────────────────────────────────────────────────────────────
+
 
 def calculate_var_historical(
     returns: Sequence[float],
@@ -119,16 +121,11 @@ def calculate_var_cornish_fisher(
     r = np.sort(arr)
     len(r)
     z = stats.norm.ppf(1 - confidence)
-    s = stats.skew(arr)           # 偏度
-    k = stats.kurtosis(arr)       # 峰度（超額峰度）
+    s = stats.skew(arr)  # 偏度
+    k = stats.kurtosis(arr)  # 峰度（超額峰度）
 
     # Cornish-Fisher 調整
-    z_cf = (
-        z
-        + (z ** 2 - 1) * s / 6
-        + (z ** 3 - 3 * z) * (k - 3) / 24
-        - (2 * z ** 3 - 5 * z) * s ** 2 / 36
-    )
+    z_cf = z + (z**2 - 1) * s / 6 + (z**3 - 3 * z) * (k - 3) / 24 - (2 * z**3 - 5 * z) * s**2 / 36
 
     var = np.percentile(arr, stats.norm.cdf(z_cf) * 100)
     return float(abs(var * portfolio_value))
@@ -165,6 +162,7 @@ def calculate_cvar(
 
 
 # ─── 比率 ──────────────────────────────────────────────────────────────────────
+
 
 def calculate_sharpe_ratio(
     returns: Sequence[float],

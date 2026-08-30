@@ -1,6 +1,7 @@
 """
 Community request/response schemas
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -8,8 +9,10 @@ from pydantic import BaseModel, Field
 
 # ── Enums ──────────────────────────────────────────────────────────────────────
 
+
 class ContentStatus(str):
     """Content moderation status"""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -18,14 +21,17 @@ class ContentStatus(str):
 
 class VoteType(str):
     """Vote type"""
+
     UPVOTE = "upvote"
     DOWNVOTE = "downvote"
 
 
 # ── Strategy Sharing ──────────────────────────────────────────────────────────
 
+
 class CreateStrategyRequest(BaseModel):
     """Create shared strategy request"""
+
     title: str = Field(..., min_length=3, max_length=200, description="策略標題")
     content: str = Field(..., min_length=10, description="策略內容（Markdown）")
     tags: list[str] = Field(default_factory=list, description="標籤列表")
@@ -36,6 +42,7 @@ class CreateStrategyRequest(BaseModel):
 
 class UpdateStrategyRequest(BaseModel):
     """Update shared strategy request"""
+
     title: str | None = Field(None, min_length=3, max_length=200)
     content: str | None = Field(None, min_length=10)
     tags: list[str] | None = None
@@ -45,6 +52,7 @@ class UpdateStrategyRequest(BaseModel):
 
 class StrategyResponse(BaseModel):
     """Shared strategy response"""
+
     id: int
     user_id: int
     author_username: str
@@ -70,6 +78,7 @@ class StrategyResponse(BaseModel):
 
 class StrategyListResponse(BaseModel):
     """Strategy list response"""
+
     items: list[StrategyResponse]
     total: int
     page: int
@@ -78,8 +87,10 @@ class StrategyListResponse(BaseModel):
 
 # ── Discussion ─────────────────────────────────────────────────────────────────
 
+
 class CreateDiscussionRequest(BaseModel):
     """Create discussion request"""
+
     title: str = Field(..., min_length=3, max_length=200, description="標題")
     content: str = Field(..., min_length=10, description="內容")
     category: str = Field(..., description="分類: general, question, analysis, feedback")
@@ -89,6 +100,7 @@ class CreateDiscussionRequest(BaseModel):
 
 class UpdateDiscussionRequest(BaseModel):
     """Update discussion request"""
+
     title: str | None = Field(None, min_length=3, max_length=200)
     content: str | None = Field(None, min_length=10)
     category: str | None = None
@@ -97,6 +109,7 @@ class UpdateDiscussionRequest(BaseModel):
 
 class DiscussionResponse(BaseModel):
     """Discussion response"""
+
     id: int
     user_id: int
     author_username: str
@@ -122,6 +135,7 @@ class DiscussionResponse(BaseModel):
 
 class DiscussionListResponse(BaseModel):
     """Discussion list response"""
+
     items: list[DiscussionResponse]
     total: int
     page: int
@@ -130,19 +144,23 @@ class DiscussionListResponse(BaseModel):
 
 # ── Comments ───────────────────────────────────────────────────────────────────
 
+
 class CreateCommentRequest(BaseModel):
     """Create comment request"""
+
     content: str = Field(..., min_length=1, max_length=5000, description="評論內容")
     parent_id: int | None = Field(None, description="父評論 ID（回覆）")
 
 
 class UpdateCommentRequest(BaseModel):
     """Update comment request"""
+
     content: str = Field(..., min_length=1, max_length=5000)
 
 
 class CommentResponse(BaseModel):
     """Comment response"""
+
     id: int
     user_id: int
     author_username: str
@@ -166,6 +184,7 @@ class CommentResponse(BaseModel):
 
 class CommentListResponse(BaseModel):
     """Comment list response"""
+
     items: list[CommentResponse]
     total: int
     page: int
@@ -174,13 +193,16 @@ class CommentListResponse(BaseModel):
 
 # ── Votes ──────────────────────────────────────────────────────────────────────
 
+
 class VoteRequest(BaseModel):
     """Vote request"""
+
     vote_type: str = Field(..., description="upvote 或 downvote")
 
 
 class VoteResponse(BaseModel):
     """Vote response"""
+
     target_type: str
     target_id: int
     vote_type: str
@@ -190,13 +212,16 @@ class VoteResponse(BaseModel):
 
 # ── User Interaction ───────────────────────────────────────────────────────────
 
+
 class FollowUserRequest(BaseModel):
     """Follow user request"""
+
     target_user_id: int
 
 
 class FollowResponse(BaseModel):
     """Follow response"""
+
     is_following: bool
     follower_count: int
     following_count: int
@@ -204,6 +229,7 @@ class FollowResponse(BaseModel):
 
 class NotificationSettings(BaseModel):
     """Notification settings"""
+
     email_on_mention: bool = True
     email_on_reply: bool = True
     email_on_strategy_comment: bool = True
@@ -213,6 +239,7 @@ class NotificationSettings(BaseModel):
 
 class NotificationResponse(BaseModel):
     """Notification response"""
+
     id: int
     type: str
     title: str
@@ -224,8 +251,10 @@ class NotificationResponse(BaseModel):
 
 # ── Content Moderation ────────────────────────────────────────────────────────
 
+
 class ReportContentRequest(BaseModel):
     """Report content request"""
+
     target_type: str = Field(..., description="strategy, discussion, comment, user")
     target_id: int = Field(..., description="目標 ID")
     reason: str = Field(..., description="舉報原因")
@@ -234,6 +263,7 @@ class ReportContentRequest(BaseModel):
 
 class ModerateContentRequest(BaseModel):
     """Moderate content request"""
+
     content_type: str = Field(..., description="strategy, discussion, comment")
     content_id: int
     action: str = Field(..., description="approve, reject, flag")
@@ -242,6 +272,7 @@ class ModerateContentRequest(BaseModel):
 
 class ModerationLogResponse(BaseModel):
     """Moderation log response"""
+
     id: int
     moderator_id: int
     content_type: str

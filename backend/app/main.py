@@ -26,9 +26,15 @@ class Settings(BaseSettings):
     app_name: str = "Gold Analysis Core"
     app_version: str = "0.1.0"
     debug: bool = True
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:5174",
+    ]
+
     class Config:
         extra = "ignore"
+
 
 settings = Settings()
 
@@ -53,7 +59,7 @@ async def _fetch_real_price_df(days: int = 400) -> pd.DataFrame | None:
             "WHERE metal='gold' AND timestamp >= ? ORDER BY timestamp ASC",
             (cutoff,),
         ).fetchall()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("[排程] 取得價格資料失敗: %s", exc)
         return None
     finally:
@@ -64,9 +70,7 @@ async def _fetch_real_price_df(days: int = 400) -> pd.DataFrame | None:
         logger.warning("[排程] 真實價格資料不足 (%d 筆)，跳過本輪", len(rows) if rows else 0)
         return None
 
-    df = pd.DataFrame(
-        [{"date": r["timestamp"], "close": float(r["local_buy"])} for r in rows]
-    )
+    df = pd.DataFrame([{"date": r["timestamp"], "close": float(r["local_buy"])} for r in rows])
     # 產生 label：未來 horizon 日報酬方向（與 FeatureEngineer._generate_labels 一致）
     horizon, threshold = 5, 0.01
     future_return = df["close"].shift(-horizon) / df["close"] - 1
@@ -86,11 +90,16 @@ async def run_monitor_job():
     """排程執行監控快照（使用真實價格資料）"""
     try:
         from app.ml.ops import run_monitor
+
         prices = await _fetch_real_price_df()
         if prices is None:
             return
         result = run_monitor(prices)
-        result = {**result, "source": "price_history", "generated_at": datetime.now(timezone.utc).isoformat()}
+        result = {
+            **result,
+            "source": "price_history",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
         logger.info("[排程] run_monitor: %s", result)
     except Exception:
         logger.exception("[排程] run_monitor 失敗")
@@ -100,6 +109,7 @@ async def run_retrain_job():
     """排程檢查是否需要重訓（使用真實價格資料）"""
     try:
         from app.ml.ops import run_retrain
+
         prices = await _fetch_real_price_df()
         if prices is None:
             return
@@ -110,6 +120,7 @@ async def run_retrain_job():
 
 
 scheduler = AsyncIOScheduler()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -131,6 +142,7 @@ async def lifespan(app: FastAPI):
     # 關閉排程器
     scheduler.shutdown()
 
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -151,6 +163,7 @@ app.add_middleware(
 
 DB_FILE = os.path.expanduser("~/.qclaw/gold_monitor_pro.db")
 
+
 def _get_db():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
@@ -158,6 +171,7 @@ def _get_db():
 
 
 # ── API Routes (SQLite mock mode) ────────────────────────────────────────────
+
 
 @app.get("/api/prices/current")
 async def get_current_price():
@@ -169,8 +183,15 @@ async def get_current_price():
             "FROM price_history WHERE metal='gold' ORDER BY timestamp DESC LIMIT 1"
         ).fetchone()
         if not row:
-            return {"sell": 0, "buy": 0, "sell_twd": 0, "buy_twd": 0,
-                    "timestamp": "", "change": 0, "change_pct": 0}
+            return {
+                "sell": 0,
+                "buy": 0,
+                "sell_twd": 0,
+                "buy_twd": 0,
+                "timestamp": "",
+                "change": 0,
+                "change_pct": 0,
+            }
 
         sell = row["local_sell"]
         buy = row["local_buy"]
@@ -209,7 +230,7 @@ async def get_price_history(days: int = 7):
             "SELECT local_sell AS sell, local_buy AS buy, timestamp "
             "FROM price_history WHERE metal='gold' AND timestamp >= ? "
             "ORDER BY timestamp ASC",
-            (cutoff,)
+            (cutoff,),
         ).fetchall()
         data = [{"timestamp": r["timestamp"], "sell": r["sell"], "buy": r["buy"]} for r in rows]
         return {"data": data, "count": len(data)}
@@ -223,8 +244,7 @@ async def get_decision_recommend():
     conn = _get_db()
     try:
         rows = conn.execute(
-            "SELECT local_buy FROM price_history "
-            "WHERE metal='gold' ORDER BY timestamp ASC"
+            "SELECT local_buy FROM price_history WHERE metal='gold' ORDER BY timestamp ASC"
         ).fetchall()
         prices = [r["local_buy"] for r in rows]
 
@@ -256,14 +276,20 @@ async def get_decision_recommend():
                 action = "buy"
                 confidence = 0.7
                 signal = "偏多 - RSI 超賣"
-                reasons = [f"RSI(14)={rsi:.1f} 處超賣區", f"MA5={ma5:.0f} < MA20={ma20:.0f}，短線偏弱"]
+                reasons = [
+                    f"RSI(14)={rsi:.1f} 處超賣區",
+                    f"MA5={ma5:.0f} < MA20={ma20:.0f}，短線偏弱",
+                ]
                 if ma60 and ma20 > ma60:
                     reasons.append(f"MA20={ma20:.0f} > MA60={ma60:.0f}，中線仍偏多")
             elif rsi > 70 and ma5 > ma20:
                 action = "sell"
                 confidence = 0.7
                 signal = "偏空 - RSI 超買"
-                reasons = [f"RSI(14)={rsi:.1f} 處超買區", f"MA5={ma5:.0f} > MA20={ma20:.0f}，短線偏強"]
+                reasons = [
+                    f"RSI(14)={rsi:.1f} 處超買區",
+                    f"MA5={ma5:.0f} > MA20={ma20:.0f}，短線偏強",
+                ]
                 if ma60 and ma20 < ma60:
                     reasons.append(f"MA20={ma20:.0f} < MA60={ma60:.0f}，中線仍偏空")
             else:
@@ -288,6 +314,7 @@ async def get_decision_recommend():
 
 # ── System endpoints ──────────────────────────────────────────────────────────
 
+
 @app.get("/")
 async def root():
     return {
@@ -308,6 +335,7 @@ if __name__ == "__main__":
 
 
 # ── Technical Analysis API ─────────────────────────────────────────────────
+
 
 @app.get("/api/technicals")
 async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
@@ -336,16 +364,18 @@ async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
             "error": f"數據不足（{len(closes)} 筆，歷史累積中）",
             "available": len(closes),
             "required": MIN_DAYS,
-            "note": "台灣銀行黃金存摺每日執行後資料會自動增加，請稍後再試"
+            "note": "台灣銀行黃金存摺每日執行後資料會自動增加，請稍後再試",
         }
 
     # 呼叫 TechnicalAnalysisAgent
     agent = TechnicalAnalysisAgent()
-    result = await agent.analyze({
-        "prices": closes,
-        "symbol": symbol,
-        "timeframe": timeframe,
-    })
+    result = await agent.analyze(
+        {
+            "prices": closes,
+            "symbol": symbol,
+            "timeframe": timeframe,
+        }
+    )
 
     # 加入資料說明
     result["_meta"] = {
@@ -360,17 +390,25 @@ async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
     macd_sig_val = result.get("indicators", {}).get("macd_signal")
 
     def _rsi_signal(v):
-        if v is None: return "hold"
-        if v > 75: return "sell"
-        if v > 65: return "hold"
-        if v < 25: return "buy"
-        if v < 35: return "hold"
+        if v is None:
+            return "hold"
+        if v > 75:
+            return "sell"
+        if v > 65:
+            return "hold"
+        if v < 25:
+            return "buy"
+        if v < 35:
+            return "hold"
         return "hold"
 
     def _price_signal(current, upper, lower, mid):
-        if current > upper: return "sell"
-        if current < lower: return "buy"
-        if current > mid: return "hold"
+        if current > upper:
+            return "sell"
+        if current < lower:
+            return "buy"
+        if current > mid:
+            return "hold"
         return "hold"
 
     bb = result.get("indicators", {}).get("bollinger", {})
@@ -379,27 +417,36 @@ async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
 
     result["indicators"] = {
         "rsi": {
-            "name": "RSI", "value": rsi_val,
+            "name": "RSI",
+            "value": rsi_val,
             "signal": _rsi_signal(rsi_val),
             "description": f"RSI {rsi_val:.1f}" if rsi_val else "無資料",
         },
         "macd": {
-            "name": "MACD", "value": macd_val,
+            "name": "MACD",
+            "value": macd_val,
             "signal": "buy" if (macd_val or 0) > (macd_sig_val or 0) else "sell",
-            "description": f"MACD {macd_val:.2f} / Signal {macd_sig_val:.2f}" if macd_val and macd_sig_val else "無資料",
+            "description": f"MACD {macd_val:.2f} / Signal {macd_sig_val:.2f}"
+            if macd_val and macd_sig_val
+            else "無資料",
         },
         "bollinger": {
-            "name": "布林通道", "value": bb.get("percent_b"),
+            "name": "布林通道",
+            "value": bb.get("percent_b"),
             "signal": _price_signal(close, bb.get("upper"), bb.get("lower"), bb.get("middle")),
-            "description": f"B% {bb.get('percent_b',0):.0%} | 上下軌 {bb.get('upper',0):.0f}/{bb.get('lower',0):.0f}",
+            "description": f"B% {bb.get('percent_b', 0):.0%} | 上下軌 {bb.get('upper', 0):.0f}/{bb.get('lower', 0):.0f}",  # noqa: E501
         },
         "ma_short": {
-            "name": "MA短期", "value": ma.get("ma20") or ma.get("ma_short"),
-            "signal": "hold", "description": "短期均線",
+            "name": "MA短期",
+            "value": ma.get("ma20") or ma.get("ma_short"),
+            "signal": "hold",
+            "description": "短期均線",
         },
         "ma_long": {
-            "name": "MA長期", "value": ma.get("ma60") or ma.get("ma_long"),
-            "signal": "hold", "description": "長期均線",
+            "name": "MA長期",
+            "value": ma.get("ma60") or ma.get("ma_long"),
+            "signal": "hold",
+            "description": "長期均線",
         },
     }
 
@@ -418,12 +465,10 @@ async def get_technicals(symbol: str = "TAIFEX-TGF1", timeframe: str = "1D"):
     # 轉換 support_resistance
     raw_sr = result.pop("support_resistance", [])
     result["support_resistance"] = [
-        {"type": sr.get("type"), "price": sr.get("level")}
-        for sr in raw_sr
+        {"type": sr.get("type"), "price": sr.get("level")} for sr in raw_sr
     ]
 
     result["trend_score"] = result.get("trend_score") or 0
-
 
     return result
 
@@ -441,36 +486,60 @@ async def forward_curve():
     """
     return await get_forward_curve_data()
 
+
 # ── 季節性分析 ──────────────────────────────────────────────────────────────
 # 黃金季節性：CME Group / World Gold Council / Kitco 多年研究平均值
 GOLD_SEASONALITY = {
-    1:  {"avg_return": 1.2,  "label": "春節前實物需求", "confidence": "medium"},
-    2:  {"avg_return": 0.8,  "label": "春節效應持續", "confidence": "medium"},
-    3:  {"avg_return": -0.4, "label": "春節結束獲利了結", "confidence": "low"},
-    4:  {"avg_return": -0.2, "label": "淡季/稅務因素", "confidence": "low"},
-    5:  {"avg_return": -0.1, "label": "結婚淡季", "confidence": "low"},
-    6:  {"avg_return": -0.3, "label": "夏季傳統淡季", "confidence": "low"},
-    7:  {"avg_return": 0.5,  "label": "印度婚禮季準備啟動", "confidence": "medium"},
-    8:  {"avg_return": 1.5,  "label": "結婚旺季(印度)", "confidence": "medium"},
-    9:  {"avg_return": 2.1,  "label": "中秋/十一假期", "confidence": "high"},
-    10: {"avg_return": 1.8,  "label": "排燈節/黃金周", "confidence": "high"},
-    11: {"avg_return": 0.3,  "label": "年底整理", "confidence": "low"},
-    12: {"avg_return": 0.6,  "label": "年終避險/禮品採購", "confidence": "medium"},
+    1: {"avg_return": 1.2, "label": "春節前實物需求", "confidence": "medium"},
+    2: {"avg_return": 0.8, "label": "春節效應持續", "confidence": "medium"},
+    3: {"avg_return": -0.4, "label": "春節結束獲利了結", "confidence": "low"},
+    4: {"avg_return": -0.2, "label": "淡季/稅務因素", "confidence": "low"},
+    5: {"avg_return": -0.1, "label": "結婚淡季", "confidence": "low"},
+    6: {"avg_return": -0.3, "label": "夏季傳統淡季", "confidence": "low"},
+    7: {"avg_return": 0.5, "label": "印度婚禮季準備啟動", "confidence": "medium"},
+    8: {"avg_return": 1.5, "label": "結婚旺季(印度)", "confidence": "medium"},
+    9: {"avg_return": 2.1, "label": "中秋/十一假期", "confidence": "high"},
+    10: {"avg_return": 1.8, "label": "排燈節/黃金周", "confidence": "high"},
+    11: {"avg_return": 0.3, "label": "年底整理", "confidence": "low"},
+    12: {"avg_return": 0.6, "label": "年終避險/禮品採購", "confidence": "medium"},
 }
-MONTH_NAMES_ZH = {1:"1月",2:"2月",3:"3月",4:"4月",5:"5月",6:"6月",7:"7月",8:"8月",9:"9月",10:"10月",11:"11月",12:"12月"}
+MONTH_NAMES_ZH = {
+    1: "1月",
+    2: "2月",
+    3: "3月",
+    4: "4月",
+    5: "5月",
+    6: "6月",
+    7: "7月",
+    8: "8月",
+    9: "9月",
+    10: "10月",
+    11: "11月",
+    12: "12月",
+}
+
 
 def _season_strength(r):
-    if r >= 1.5: return "strong_buy"
-    if r >= 0.5: return "buy"
-    if r >= -0.2: return "neutral"
-    if r >= -0.4: return "sell"
+    if r >= 1.5:
+        return "strong_buy"
+    if r >= 0.5:
+        return "buy"
+    if r >= -0.2:
+        return "neutral"
+    if r >= -0.4:
+        return "sell"
     return "strong_sell"
 
+
 def _get_season(m):
-    if m in (3,4,5): return "Q2(夏)"
-    if m in (6,7,8): return "Q3(秋)"
-    if m in (9,10,11): return "Q4(冬)"
+    if m in (3, 4, 5):
+        return "Q2(夏)"
+    if m in (6, 7, 8):
+        return "Q3(秋)"
+    if m in (9, 10, 11):
+        return "Q4(冬)"
     return "Q1(春)"
+
 
 @app.get("/api/seasonality")
 async def seasonality():
@@ -500,28 +569,30 @@ async def seasonality():
         conn.close()
 
     # 月均價
-    {ym: sum(v)/len(v) for ym, v in monthly_prices.items()}
+    {ym: sum(v) / len(v) for ym, v in monthly_prices.items()}
 
     monthly_stats = []
     for m in range(1, 13):
         ref = GOLD_SEASONALITY[m]
-        year_months = [f"{now.year}-{m:02d}", f"{now.year-1}-{m:02d}", f"{now.year-2}-{m:02d}"]
+        year_months = [f"{now.year}-{m:02d}", f"{now.year - 1}-{m:02d}", f"{now.year - 2}-{m:02d}"]
         local = []
         for ym in year_months:
             if ym in monthly_prices:
                 local.extend(monthly_prices[ym])
-        avg_price = round(sum(local)/len(local), 2) if len(local) >= 2 else None
-        monthly_stats.append({
-            "month": m,
-            "month_label": MONTH_NAMES_ZH[m],
-            "avg_return_pct": ref["avg_return"],
-            "avg_price": avg_price,
-            "data_count": len(local),
-            "reference_return": ref["avg_return"],
-            "reference_label": ref["label"],
-            "confidence": ref["confidence"],
-            "strength": _season_strength(ref["avg_return"]),
-        })
+        avg_price = round(sum(local) / len(local), 2) if len(local) >= 2 else None
+        monthly_stats.append(
+            {
+                "month": m,
+                "month_label": MONTH_NAMES_ZH[m],
+                "avg_return_pct": ref["avg_return"],
+                "avg_price": avg_price,
+                "data_count": len(local),
+                "reference_return": ref["avg_return"],
+                "reference_label": ref["label"],
+                "confidence": ref["confidence"],
+                "strength": _season_strength(ref["avg_return"]),
+            }
+        )
 
     sorted_by = sorted(monthly_stats, key=lambda x: x["reference_return"])
     worst_month = sorted_by[0]["month"]
@@ -529,7 +600,7 @@ async def seasonality():
 
     total_days = sum(s["data_count"] for s in monthly_stats)
     if total_days < 30:
-        data_note = "⚠️ 本地歷史資料不足，月度統計以市場研究參考值為主。黃金季節性是多年平均趨勢，請謹慎解讀。"
+        data_note = "⚠️ 本地歷史資料不足，月度統計以市場研究參考值為主。黃金季節性是多年平均趨勢，請謹慎解讀。"  # noqa: E501
     else:
         data_note = f"共 {total_days} 天本地歷史資料"
 
@@ -550,10 +621,12 @@ async def seasonality():
 # 資料來源：TAIFEX 台灣期貨交易所
 # ────────────────────────────────────────────────────────────────
 
+
 @app.get("/api/contracts")
 async def get_contracts():
     """期貨合約資訊：合約規格 + 月份合約列表"""
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
 
     # ── 靜態合約規格 ─────────────────────────────────────────────
@@ -584,23 +657,36 @@ async def get_contracts():
             month = d.month
             year = d.year
             # 月份代碼：F G H J K M N Q U V X Z
-            codes = {1:"F",2:"G",3:"H",4:"J",5:"K",6:"M",
-                     7:"N",8:"Q",9:"U",10:"V",11:"X",12:"Z"}
+            codes = {
+                1: "F",
+                2: "G",
+                3: "H",
+                4: "J",
+                5: "K",
+                6: "M",
+                7: "N",
+                8: "Q",
+                9: "U",
+                10: "V",
+                11: "X",
+                12: "Z",
+            }
             code = codes[month]
             # 到期日：每月倒數第 2 個營業日，約在每月 25 日左右
             # 粗估：每月 25 日（若為假日前移）
             last_trading = _estimate_last_trading_day(year, month)
-            contracts.append({
-                "delivery_month": f"{year}-{month:02d}",
-                "delivery_label": f"{year}年{month}月 ({_zh_month(month)})",
-                "contract_code": f"TGF1{code}{str(year)[2:]}",
-                "last_trading_date": last_trading,
-                "is_near": len(contracts) == 0,
-                "months_ahead": len(contracts),
-            })
+            contracts.append(
+                {
+                    "delivery_month": f"{year}-{month:02d}",
+                    "delivery_label": f"{year}年{month}月 ({_zh_month(month)})",
+                    "contract_code": f"TGF1{code}{str(year)[2:]}",
+                    "last_trading_date": last_trading,
+                    "is_near": len(contracts) == 0,
+                    "months_ahead": len(contracts),
+                }
+            )
             # 下一個月
-            d = datetime(year if month < 12 else year + 1,
-                         (month % 12) + 1, 1, tzinfo=timezone.utc)
+            d = datetime(year if month < 12 else year + 1, (month % 12) + 1, 1, tzinfo=timezone.utc)
         return contracts
 
     def _estimate_last_trading_day(year: int, month: int) -> str:
@@ -614,8 +700,9 @@ async def get_contracts():
         return d.strftime("%Y-%m-%d")
 
     def _zh_month(m: int) -> str:
-        return ["一","二","三","四","五","六",
-                "七","八","九","十","十一","十二"][m-1] + "月"
+        return ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"][
+            m - 1
+        ] + "月"
 
     months = _next_n_months(6)
 
@@ -624,6 +711,8 @@ async def get_contracts():
         "contracts": months,
         "fetched_at": now.strftime("%Y/%m/%d %H:%M"),
     }
+
+
 # ── Merged advanced ops triggers (approach 2) ──────────────────────────────
 from app.routers.advanced_ops import ml_router as _ml_ops_router
 from app.routers.advanced_ops import trade_router as _trade_router

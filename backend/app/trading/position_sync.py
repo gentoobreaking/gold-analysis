@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class PositionSync:
     """持倉同步管理器"""
 
-    def __init__(self, client: ExchangeClient | None = None, use_mock: bool = True, **client_kwargs):
+    def __init__(
+        self, client: ExchangeClient | None = None, use_mock: bool = True, **client_kwargs
+    ):
         self.client = client or ExchangeClient(use_mock=use_mock, **client_kwargs)
         self.logger = logging.getLogger(__name__)
         self._cache: dict[str, Position] = {}

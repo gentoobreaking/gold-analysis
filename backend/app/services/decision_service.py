@@ -81,7 +81,7 @@ class DecisionService:
                 decision_type=decision.decision_type.value,
                 reasoning_zh=decision.reason_zh,
             )
-        except Exception:  # noqa: BLE001 - 解釋為輔助資訊，失敗不影響主決策
+        except Exception:
             explanation = None
 
         return {

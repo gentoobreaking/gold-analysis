@@ -25,18 +25,21 @@ router = APIRouter(prefix="/api/forward-curve", tags=["遠期曲線"])
 
 # ── Pydantic Models ───────────────────────────────────────────────────────────
 
+
 class ContractPoint(BaseModel):
     """單一合約月份資料"""
-    symbol: str          # 合約代碼 e.g. "TGF1"
+
+    symbol: str  # 合約代碼 e.g. "TGF1"
     contract_month: str  # 合約月份 e.g. "202506"
-    maturity_date: str   # 到期日 e.g. "2025/06/19"
-    price: float         # 結算價
-    premium: float       # 對現貨溢價（%），正=遠月高於現貨（正價差）
-    premium_label: str    # "正價差" | "負價差" | "平價"
+    maturity_date: str  # 到期日 e.g. "2025/06/19"
+    price: float  # 結算價
+    premium: float  # 對現貨溢價（%），正=遠月高於現貨（正價差）
+    premium_label: str  # "正價差" | "負價差" | "平價"
 
 
 class ForwardCurveResponse(BaseModel):
     """遠期曲線 API 回應"""
+
     spot_price: float
     fetched_at: str
     contracts: list[ContractPoint]
@@ -74,28 +77,23 @@ async def _parse_taifex_gold_futures() -> list[ContractPoint]:
         # TAIFEX 期貨報價頁面需要 POST 查詢，稍微麻煩
         # 先嘗試 GET
         html = await _fetch_with_cache(
-            "https://www.taifex.com.tw/eng/eng3/PCRatio.aspx",
-            {"comm": "TGF1"}
+            "https://www.taifex.com.tw/eng/eng3/PCRatio.aspx", {"comm": "TGF1"}
         )
         # 解析 HTML（找 <table> 中的結算價）
         # TAIFEX 頁面編碼為 Big5，需要留意
-        html = html.encode('latin1').decode('big5', errors='replace')
+        html = html.encode("latin1").decode("big5", errors="replace")
         # 找 TGF1 相關行
-        re.findall(
-            r'<td[^>]*>(.*?)</td>\s*' * 8,
-            html,
-            re.DOTALL
-        )
+        re.findall(r"<td[^>]*>(.*?)</td>\s*" * 8, html, re.DOTALL)
         # 實作細節視頁面結構而定，回退策略
-    except Exception:  # noqa: S110
+    except Exception:
         pass
     # 回退：嘗試另一個端點（futures DailyQuote）
     try:
         quote_url = "https://www.taifex.com.tw/eng/eng3/dailyQF.aspx"
         html = await _fetch_with_cache(quote_url)
-        html = html.encode('latin1').decode('big5', errors='replace')
+        html = html.encode("latin1").decode("big5", errors="replace")
         # 解析 HTML 中 TGF1 的報價
-    except Exception:  # noqa: S110
+    except Exception:
         pass
     return _fallback_mock_data()
 
@@ -139,14 +137,16 @@ def _fallback_mock_data() -> list[ContractPoint]:
         price = round(spot * (1 + premium_pct / 100), 2)
         premium = round(premium_pct, 3)
 
-        contracts.append(ContractPoint(
-            symbol="TGF1",
-            contract_month=contract_month,
-            maturity_date=maturity_str,
-            price=price,
-            premium=premium,
-            premium_label="正價差" if premium > 0 else "負價差" if premium < 0 else "平價",
-        ))
+        contracts.append(
+            ContractPoint(
+                symbol="TGF1",
+                contract_month=contract_month,
+                maturity_date=maturity_str,
+                price=price,
+                premium=premium,
+                premium_label="正價差" if premium > 0 else "負價差" if premium < 0 else "平價",
+            )
+        )
 
     return contracts
 
@@ -166,7 +166,7 @@ async def get_forward_curve_data() -> ForwardCurveResponse:
         if premium > 0.5:
             summary = f"正價差市場（Contango）：{premium:.2f}% 遠月高於近月，庫存充裕或避險需求低"
         elif premium < -0.5:
-            summary = f"逆價差市場（Backwardation）：{abs(premium):.2f}% 近月高於遠月，供應緊張或短期需求高"
+            summary = f"逆價差市場（Backwardation）：{abs(premium):.2f}% 近月高於遠月，供應緊張或短期需求高"  # noqa: E501
         else:
             summary = "曲線相對平坦，市場供需平衡"
     else:
@@ -181,6 +181,7 @@ async def get_forward_curve_data() -> ForwardCurveResponse:
 
 
 # ── API Endpoint ───────────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=ForwardCurveResponse)
 async def get_forward_curve():

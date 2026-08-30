@@ -69,7 +69,7 @@ async def _sentiment_fetcher() -> tuple[str | None, bool]:
     try:
         tools = DataTools()
         data = await tools.get_sentiment_data()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning("sentiment freshness check failed: %s", e)
         return None, False
     if not data.get("available"):
@@ -161,7 +161,7 @@ class DataFreshnessMonitor:
                     }
                 )
                 self._last_alerted[st.name] = time.time()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error("freshness notify failed: %s", e)
         return results
 

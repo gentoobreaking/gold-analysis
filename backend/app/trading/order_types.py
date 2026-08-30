@@ -13,34 +13,39 @@ from typing import Any
 
 # ─── 枚舉類 ─────────────────────────────────────────────────────────────────
 
+
 class OrderSide(str, Enum):
     """訂單方向"""
+
     BUY = "buy"
     SELL = "sell"
 
 
 class OrderType(str, Enum):
     """訂單類型"""
-    MARKET = "market"          # 市價單
-    LIMIT = "limit"            # 限價單
-    STOP = "stop"              # 止損單
+
+    MARKET = "market"  # 市價單
+    LIMIT = "limit"  # 限價單
+    STOP = "stop"  # 止損單
     STOP_LIMIT = "stop_limit"  # 止損限價單
     TAKE_PROFIT = "take_profit"  # 止盈單
 
 
 class OrderStatus(str, Enum):
     """訂單狀態"""
-    PENDING = "pending"        # 待成交
-    SUBMITTED = "submitted"    # 已提交
-    PARTIAL = "partial"        # 部分成交
-    FILLED = "filled"          # 完全成交
-    CANCELLED = "cancelled"    # 已取消
-    REJECTED = "rejected"      # 被拒絕
-    EXPIRED = "expired"        # 已過期
+
+    PENDING = "pending"  # 待成交
+    SUBMITTED = "submitted"  # 已提交
+    PARTIAL = "partial"  # 部分成交
+    FILLED = "filled"  # 完全成交
+    CANCELLED = "cancelled"  # 已取消
+    REJECTED = "rejected"  # 被拒絕
+    EXPIRED = "expired"  # 已過期
 
 
 class PositionSide(str, Enum):
     """持倉方向（期貨/杠桿）"""
+
     LONG = "long"
     SHORT = "short"
     NET = "net"  # 現貨/合一帳戶
@@ -48,7 +53,8 @@ class PositionSide(str, Enum):
 
 class TimeInForce(str, Enum):
     """訂單有效期"""
-    GTC = "GTC"   # Good Till Canceled（永久有效直至取消）
+
+    GTC = "GTC"  # Good Till Canceled（永久有效直至取消）
     IOC = "IOC"  # Immediate Or Cancel（即時或取消）
     FOK = "FOK"  # Fill Or Kill（全數成交或取消）
     DAY = "DAY"  # 當日有效
@@ -56,11 +62,12 @@ class TimeInForce(str, Enum):
 
 # ─── 數據類別 ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Order:
     """
     訂單數據模型
-    
+
     Attributes:
         order_id: 交易所返回的訂單 ID
         client_order_id: 客戶端生成的訂單 ID（用於追蹤）
@@ -79,6 +86,7 @@ class Order:
         updated_at: 更新時間
         notes: 備註
     """
+
     symbol: str
     side: OrderSide
     order_type: OrderType
@@ -97,12 +105,12 @@ class Order:
     notes: str | None = None
     exchange: str = "mock"  # 交易所名稱
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     @property
     def remaining_quantity(self) -> float:
         """剩餘未成交數量"""
         return max(0.0, self.quantity - self.filled_quantity)
-    
+
     @property
     def is_closed(self) -> bool:
         """訂單是否已結束（成交/取消/拒絕/過期）"""
@@ -112,12 +120,12 @@ class Order:
             OrderStatus.REJECTED,
             OrderStatus.EXPIRED,
         }
-    
+
     @property
     def total_value(self) -> float:
         """訂單總價值"""
         return self.avg_fill_price * self.filled_quantity
-    
+
     def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
@@ -148,7 +156,7 @@ class Order:
 class Position:
     """
     持倉數據模型
-    
+
     Attributes:
         symbol: 標的代碼
         side: 持倉方向
@@ -160,6 +168,7 @@ class Position:
         opened_at: 開倉時間
         exchange: 交易所
     """
+
     symbol: str
     side: PositionSide
     quantity: float
@@ -169,12 +178,12 @@ class Position:
     opened_at: datetime = field(default_factory=datetime.now(timezone.utc))
     exchange: str = "mock"
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     @property
     def market_value(self) -> float:
         """市值"""
         return self.quantity * self.current_price
-    
+
     @property
     def unrealized_pnl(self) -> float:
         """未實現盈虧"""
@@ -184,19 +193,19 @@ class Position:
             return (self.avg_entry_price - self.current_price) * self.quantity
         else:
             return (self.current_price - self.avg_entry_price) * self.quantity
-    
+
     @property
     def unrealized_pnl_pct(self) -> float:
         """未實現盈虧百分比"""
         if self.avg_entry_price == 0:
             return 0.0
         return self.unrealized_pnl / (self.avg_entry_price * self.quantity) * 100
-    
+
     @property
     def cost_basis(self) -> float:
         """持倉成本"""
         return self.avg_entry_price * self.quantity
-    
+
     def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
@@ -219,7 +228,7 @@ class Position:
 class AccountBalance:
     """
     帳戶餘額數據模型
-    
+
     Attributes:
         total_equity: 總資產（帳戶淨值）
         cash: 可用現金
@@ -230,6 +239,7 @@ class AccountBalance:
         unrealized_pnl: 總未實現盈虧
         realized_pnl_today: 今日已實現盈虧
     """
+
     total_equity: float
     cash: float
     currency: str = "USD"
@@ -238,17 +248,17 @@ class AccountBalance:
     realized_pnl_today: float = 0.0
     exchange: str = "mock"
     timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
-    
+
     @property
     def buying_power(self) -> float:
         """購買力（可用現金）"""
         return self.cash
-    
+
     @property
     def margin_available(self) -> float:
         """可用保證金"""
         return max(0.0, self.total_equity - self.margin_used)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """轉換為字典"""
         return {
@@ -269,7 +279,7 @@ class AccountBalance:
 class Trade:
     """
     成交記錄
-    
+
     Attributes:
         trade_id: 成交 ID
         order_id: 關聯訂單 ID
@@ -280,6 +290,7 @@ class Trade:
         commission: 手續費
         timestamp: 成交時間
     """
+
     trade_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     order_id: str | None = None
     symbol: str = ""
@@ -288,11 +299,11 @@ class Trade:
     price: float = 0.0
     commission: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
-    
+
     @property
     def value(self) -> float:
         return self.quantity * self.price
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "trade_id": self.trade_id,

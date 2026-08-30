@@ -24,7 +24,7 @@ async def rate_limit_dependency(request: Request) -> None:
     """
     # Get client identifier (IP address or user ID if authenticated)
     get_remote_address(request)
-    
+
     # Check rate limit manually for custom limits
     # This is a simplified version; in production use @limiter.limit decorator
 
@@ -37,5 +37,5 @@ def rate_limit_callback(request: Request, exc: RateLimitExceeded) -> JSONRespons
             "detail": f"速率限制已超出: {exc.detail}",
             "error": "rate_limit_exceeded",
             "retry_after": getattr(exc, "retry_after", 60),
-        }
+        },
     )

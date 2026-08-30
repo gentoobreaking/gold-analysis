@@ -3,6 +3,7 @@
 Provides token creation/verification and password hashing utilities
 used by authentication routes and middleware.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -55,9 +56,7 @@ def create_refresh_token(
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            days=settings.jwt_refresh_token_expire_days
-        )
+        expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(
         to_encode,

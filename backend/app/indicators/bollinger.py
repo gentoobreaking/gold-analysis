@@ -28,9 +28,11 @@ SQUEEZE_RATIO = 0.10  # 帶寬 < 收盤價的 10% 視為收窄
 
 # ─── 數據類別 ─────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class BollingerSqueeze:
     """布林帶收窄事件"""
+
     start_idx: int
     end_idx: int
     min_bandwidth: float
@@ -38,6 +40,7 @@ class BollingerSqueeze:
 
 
 # ─── 布林帶計算 ────────────────────────────────────────────────────────────────
+
 
 class BollingerBands:
     """
@@ -85,7 +88,7 @@ class BollingerBands:
             return upper, middle, lower, percent_b, bandwidth
 
         for i in range(self.period - 1, n):
-            window = arr[i - self.period + 1:i + 1]
+            window = arr[i - self.period + 1 : i + 1]
             sma = np.mean(window)
             std = np.std(window, ddof=0)
 
@@ -111,6 +114,7 @@ def compute_bollinger(
 
 
 # ─── 收窄檢測 ─────────────────────────────────────────────────────────────────
+
 
 def detect_bollinger_squeeze(
     bandwidth: Sequence[float],
@@ -148,11 +152,13 @@ def detect_bollinger_squeeze(
 
         if end - start >= min_duration:
             segment = bw[start:end]
-            squeezes.append(BollingerSqueeze(
-                start_idx=start,
-                end_idx=end - 1,
-                min_bandwidth=float(np.min(segment)),
-                avg_bandwidth=float(np.mean(segment)),
-            ))
+            squeezes.append(
+                BollingerSqueeze(
+                    start_idx=start,
+                    end_idx=end - 1,
+                    min_bandwidth=float(np.min(segment)),
+                    avg_bandwidth=float(np.mean(segment)),
+                )
+            )
 
     return squeezes

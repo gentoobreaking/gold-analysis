@@ -115,12 +115,12 @@ def execute_decision(
             notify_alert(
                 {
                     "title": f"[RISK BLOCK] {symbol} {action}",
-                    "body": f"Pre-trade risk gate blocked order: {risk['summary']['blocked_rules']}",
+                    "body": f"Pre-trade risk gate blocked order: {risk['summary']['blocked_rules']}",  # noqa: E501
                     "level": "critical",
                     "source": "execution",
                 }
             )
-        except Exception:  # noqa: BLE001,S110
+        except Exception:
             pass
         return event
 

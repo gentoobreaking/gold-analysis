@@ -3,6 +3,7 @@ Webhook signal schemas (T067)
 
 TradingView / 外部 JSON webhook 訊號對應到內部 Decision 結構。
 """
+
 from __future__ import annotations
 
 from app.models.decision import DecisionType

@@ -3,6 +3,7 @@
 This module provides the application settings for JWT authentication,
 Redis connection, and other core infrastructure.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -28,14 +29,12 @@ class CoreSettings(BaseSettings):
     )
 
     # Redis (used by rate limiter)
-    redis_url: str = Field(
-        default="redis://localhost:6379/0", description="Redis connection URL"
-    )
+    redis_url: str = Field(default="redis://localhost:6379/0", description="Redis connection URL")
 
     # Trading safety master switch (T055)
     trading_enabled: bool = Field(
         default=False,
-        description="Master kill-switch for live order execution. Must be explicitly True to submit real orders.",
+        description="Master kill-switch for live order execution. Must be explicitly True to submit real orders.",  # noqa: E501
     )
     trading_dry_run: bool = Field(
         default=True,
@@ -65,7 +64,7 @@ class CoreSettings(BaseSettings):
     # LLM 宏觀敘事 (T065) — OpenAI-compatible /v1/chat/completions
     llm_enabled: bool = Field(
         default=False,
-        description="Enable LLM macro-digest generation. When False the pipeline degrades gracefully.",
+        description="Enable LLM macro-digest generation. When False the pipeline degrades gracefully.",  # noqa: E501
     )
     llm_api_key: str | None = Field(default=None, description="LLM provider API key.")
     llm_base_url: str = Field(

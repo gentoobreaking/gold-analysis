@@ -182,7 +182,7 @@ def _save_and_maybe_push(result: dict[str, Any], push: bool) -> dict[str, Any]:
                     "source": "macro_digest",
                 }
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error("push digest failed: %s", e)
     return result
 
@@ -194,6 +194,6 @@ def get_latest_digest() -> dict[str, Any] | None:
     try:
         with open(LATEST_JSON, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("read latest digest failed: %s", e)
         return None

@@ -30,32 +30,37 @@ OVERSOLD = 30.0
 
 # ─── 數據類別 ─────────────────────────────────────────────────────────────────
 
+
 class RSISignalType(str, Enum):
     """RSI 信號類型"""
-    OVERBOUGHT = "overbought"   # 超買
-    OVERSOLD = "oversold"       # 超賣
-    NEUTRAL = "neutral"         # 中性
+
+    OVERBOUGHT = "overbought"  # 超買
+    OVERSOLD = "oversold"  # 超賣
+    NEUTRAL = "neutral"  # 中性
 
 
 @dataclass
 class RSIDivergence:
     """RSI 背離"""
-    div_type: str               # "bearish" 或 "bullish"
-    start_idx: int              # 背離起始索引
-    end_idx: int                # 背離結束索引
-    price_delta: float          # 價格變化幅度
-    rsi_delta: float            # RSI 變化幅度
+
+    div_type: str  # "bearish" 或 "bullish"
+    start_idx: int  # 背離起始索引
+    end_idx: int  # 背離結束索引
+    price_delta: float  # 價格變化幅度
+    rsi_delta: float  # RSI 變化幅度
 
 
 @dataclass
 class RSISignal:
     """RSI 信號"""
+
     index: int
     signal_type: RSISignalType
     value: float
 
 
 # ─── RSI 計算 ─────────────────────────────────────────────────────────────────
+
 
 class RSI:
     """
@@ -96,8 +101,8 @@ class RSI:
         losses = np.where(deltas < 0, -deltas, 0.0)
 
         # 初始均值（簡單平均）
-        avg_gain = np.mean(gains[:self.period])
-        avg_loss = np.mean(losses[:self.period])
+        avg_gain = np.mean(gains[: self.period])
+        avg_loss = np.mean(losses[: self.period])
 
         if avg_loss == 0:
             result[self.period] = 100.0
@@ -126,6 +131,7 @@ def compute_rsi(data: Sequence[float], period: int = DEFAULT_PERIOD) -> np.ndarr
 
 # ─── 超買超賣信號 ─────────────────────────────────────────────────────────────
 
+
 def generate_rsi_signals(
     rsi_values: Sequence[float],
     overbought: float = OVERBOUGHT,
@@ -147,13 +153,16 @@ def generate_rsi_signals(
         if np.isnan(val):
             continue
         if val >= overbought:
-            signals.append(RSISignal(index=i, signal_type=RSISignalType.OVERBOUGHT, value=float(val)))
+            signals.append(
+                RSISignal(index=i, signal_type=RSISignalType.OVERBOUGHT, value=float(val))
+            )
         elif val <= oversold:
             signals.append(RSISignal(index=i, signal_type=RSISignalType.OVERSOLD, value=float(val)))
     return signals
 
 
 # ─── 背離檢測 ─────────────────────────────────────────────────────────────────
+
 
 def detect_rsi_divergence(
     prices: Sequence[float],
@@ -208,15 +217,17 @@ def detect_rsi_divergence(
         p1, p2 = price_peaks[-2], price_peaks[-1]
         if prices[p2] > prices[p1] * (1 + min_swing / 100):
             # 價格新高，找對應的 RSI 高點
-            for r1, r2 in zip(rsi_peaks[-2:], rsi_peaks[-1:]):
+            for r1, r2 in zip(rsi_peaks[-2:], rsi_peaks[-1:], strict=False):
                 if r2 > r1 and rsi[r2] <= rsi[r1]:
-                    divergences.append(RSIDivergence(
-                        div_type="bearish",
-                        start_idx=int(r1),
-                        end_idx=int(r2),
-                        price_delta=float(prices[p2] - prices[p1]),
-                        rsi_delta=float(rsi[r2] - rsi[r1]),
-                    ))
+                    divergences.append(
+                        RSIDivergence(
+                            div_type="bearish",
+                            start_idx=int(r1),
+                            end_idx=int(r2),
+                            price_delta=float(prices[p2] - prices[p1]),
+                            rsi_delta=float(rsi[r2] - rsi[r1]),
+                        )
+                    )
                     break
 
     # 看漲背離（底背離）
@@ -226,15 +237,17 @@ def detect_rsi_divergence(
     if len(price_troughs) >= 2 and len(rsi_troughs) >= 2:
         p1, p2 = price_troughs[-2], price_troughs[-1]
         if prices[p2] < prices[p1] * (1 - min_swing / 100):
-            for r1, r2 in zip(rsi_troughs[-2:], rsi_troughs[-1:]):
+            for r1, r2 in zip(rsi_troughs[-2:], rsi_troughs[-1:], strict=False):
                 if r2 > r1 and rsi[r2] >= rsi[r1]:
-                    divergences.append(RSIDivergence(
-                        div_type="bullish",
-                        start_idx=int(r1),
-                        end_idx=int(r2),
-                        price_delta=float(prices[p2] - prices[p1]),
-                        rsi_delta=float(rsi[r2] - rsi[r1]),
-                    ))
+                    divergences.append(
+                        RSIDivergence(
+                            div_type="bullish",
+                            start_idx=int(r1),
+                            end_idx=int(r2),
+                            price_delta=float(prices[p2] - prices[p1]),
+                            rsi_delta=float(rsi[r2] - rsi[r1]),
+                        )
+                    )
                     break
 
     return divergences

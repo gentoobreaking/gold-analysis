@@ -6,7 +6,7 @@ class MarketValidator:
 
     def __init__(self):
         self.dxy_range = (80, 120)  # DXY 合理範圍
-        self.rate_range = (0, 25)   # 利率合理範圍（%）
+        self.rate_range = (0, 25)  # 利率合理範圍（%）
 
     def validate_dxy(self, value: float) -> bool:
         """DXY 範圍驗證"""

@@ -242,7 +242,7 @@ class BacktestEngine:
                 sig = fn(pd.Series(np.asarray(prices, dtype=float)))
                 res = self.run(prices, sig.tolist())
                 out[name] = self._result_to_dict(res)
-            except Exception as exc:  # noqa: BLE001 - 單一策略失敗不影響其他
+            except Exception as exc:
                 out[name] = {"error": str(exc)}
         return out
 

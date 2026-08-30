@@ -10,27 +10,27 @@ from pydantic_settings import BaseSettings
 
 class APISettings(BaseSettings):
     """API 密鑰配置"""
-    
+
     # Alpha Vantage
     alpha_vantage_api_key: str = ""
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
-    
+
     # Finnhub
     finnhub_api_key: str = ""
     finnhub_base_url: str = "https://finnhub.io/api/v1"
-    
+
     # FRED
     fred_api_key: str = ""
     fred_base_url: str = "https://api.stlouisfed.org/fred"
-    
+
     # Rate limiting
     alpha_vantage_rate_limit: int = 5  # 5 calls/min
     alpha_vantage_rate_period: int = 60  # 60 seconds
-    
+
     # Retry settings
     max_retries: int = 3
     retry_delay: float = 1.0  # seconds
-    
+
     # Cache settings
     cache_ttl: int = 300  # 5 minutes default
 

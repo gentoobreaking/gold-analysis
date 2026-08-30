@@ -37,8 +37,8 @@ router = APIRouter()
 @router.post("/run", response_model=BacktestResponse)
 async def run_backtest(
     request: BacktestRequest,
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> BacktestResponse:
     """
     運行策略回測。
@@ -53,7 +53,7 @@ async def run_backtest(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="結束日期必須晚於開始日期",
-        )
+        ) from None
 
     # Validate strategy type
     valid_strategies = ["ma_crossover", "rsi", "macd", "combined"]
@@ -61,7 +61,7 @@ async def run_backtest(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"不支持的策略類型。可選: {', '.join(valid_strategies)}",
-        )
+        ) from None
 
     backtest_service = BacktestService(db)
     try:
@@ -78,14 +78,14 @@ async def run_backtest(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from None
 
 
 @router.post("/strategies", response_model=StrategyResponse, status_code=status.HTTP_201_CREATED)
 async def save_strategy(
     request: SaveStrategyRequest,
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> StrategyResponse:
     """
     保存策略配置。
@@ -115,8 +115,8 @@ async def list_strategies(
     page_size: int = Query(default=20, ge=1, le=100),
     strategy_type: str | None = Query(None, description="策略類型過濾"),
     include_public: bool = Query(default=True, description="包含公開策略"),
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> StrategyListResponse:
     """
     列出策略。
@@ -142,8 +142,8 @@ async def list_strategies(
 @router.get("/strategies/{strategy_id}", response_model=StrategyResponse)
 async def get_strategy(
     strategy_id: int,
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> StrategyResponse:
     """獲取策略詳情。"""
     backtest_service = BacktestService(db)
@@ -158,19 +158,19 @@ async def get_strategy(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您無權查看此策略",
-        )
+        ) from None
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="策略不存在",
-        )
+        ) from None
 
 
 @router.delete("/strategies/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_strategy(
     strategy_id: int,
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """刪除策略。"""
     backtest_service = BacktestService(db)
@@ -184,20 +184,20 @@ async def delete_strategy(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="您無權刪除此策略",
-        )
+        ) from None
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="策略不存在",
-        )
+        ) from None
 
 
 @router.get("/history", response_model=list[BacktestResponse])
 async def list_backtest_history(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=50),
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> list[BacktestResponse]:
     """列出歷史回測記錄。"""
     backtest_service = BacktestService(db)
@@ -214,10 +214,10 @@ async def list_backtest_history(
 @router.get("/compare")
 async def compare_strategies(
     strategy_ids: str = Query(..., description="策略 ID 列表（逗號分隔）"),
-    start_date: datetime | None = Query(None, description="比較開始日期"),  # noqa: B008
-    end_date: datetime | None = Query(None, description="比較結束日期"),  # noqa: B008
-    current_user: User = Depends(get_current_active_user),  # noqa: B008
-    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+    start_date: datetime | None = Query(None, description="比較開始日期"),
+    end_date: datetime | None = Query(None, description="比較結束日期"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """
     比較多個策略的表現。
@@ -232,7 +232,7 @@ async def compare_strategies(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="至少需要兩個策略進行比較",
-        )
+        ) from None
 
     backtest_service = BacktestService(db)
 
@@ -248,7 +248,7 @@ async def compare_strategies(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from None
 
 
 # ── T063: 向量化引擎端點（無 DB / 自帶價格序列）────────────────────────────
@@ -267,7 +267,7 @@ async def walk_forward(request: WalkForwardRequest) -> WalkForwardResponse:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"未知策略類型。可選: {', '.join(BUILTIN_STRATEGIES.keys())}",
-        )
+        ) from None
     engine = BacktestEngine()
     result = engine.walk_forward(
         prices=request.prices,
@@ -298,7 +298,7 @@ async def compare_strategies_engine(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"未知策略: {', '.join(unknown)}。可選: {', '.join(BUILTIN_STRATEGIES.keys())}",
-        )
+        ) from None
     engine = BacktestEngine()
     strategies = {name: BUILTIN_STRATEGIES[name] for name in request.strategies}
     raw = engine.compare_strategies(request.prices, strategies)
@@ -331,7 +331,7 @@ async def paper_replay(request: PaperReplayRequest) -> PaperReplayResponse:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="prices 與 decision_signals 長度必須一致",
-        )
+        ) from None
     engine = BacktestEngine()
     result = engine.paper_replay(request.prices, request.decision_signals)
     return PaperReplayResponse(

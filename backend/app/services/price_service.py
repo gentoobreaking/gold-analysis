@@ -2,6 +2,7 @@
 
 Mock 實作供測試/開發環境使用。正式環境可替換為真實數據源（yfinance/Alpha Vantage 等）。
 """
+
 from __future__ import annotations
 
 import random
@@ -74,7 +75,7 @@ class PriceService:
         current = start_time
         base_price = 2000.0
 
-        for i in range(min(limit, 500)):
+        for _i in range(min(limit, 500)):
             if current > end_time:
                 break
             # 模擬價格隨機游走
@@ -86,14 +87,16 @@ class PriceService:
             close_price = base_price + random.uniform(-2, 2)
             volume = random.randint(1000, 10000)
 
-            data.append({
-                "timestamp": current,
-                "open": round(open_price, 2),
-                "high": round(high, 2),
-                "low": round(low, 2),
-                "close": round(close_price, 2),
-                "volume": float(volume),
-            })
+            data.append(
+                {
+                    "timestamp": current,
+                    "open": round(open_price, 2),
+                    "high": round(high, 2),
+                    "low": round(low, 2),
+                    "close": round(close_price, 2),
+                    "volume": float(volume),
+                }
+            )
             current += delta
 
         return {

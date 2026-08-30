@@ -1,6 +1,7 @@
 """
 Price data request/response schemas
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -8,8 +9,10 @@ from pydantic import BaseModel, Field
 
 # ── Request Schemas ───────────────────────────────────────────────────────────
 
+
 class PriceQueryParams(BaseModel):
     """Price query parameters"""
+
     symbol: str = Field(default="GOLD", description="資產符號")
     interval: str = Field(default="1h", description="時間間隔: 1m, 5m, 15m, 1h, 4h, 1d")
     start_time: datetime | None = Field(None, description="開始時間")
@@ -19,6 +22,7 @@ class PriceQueryParams(BaseModel):
 
 class HistoricalPricesRequest(BaseModel):
     """Historical prices request"""
+
     symbol: str = Field(default="GOLD", description="資產符號")
     interval: str = Field(default="1h", description="時間間隔")
     start_time: datetime = Field(..., description="開始時間")
@@ -28,8 +32,10 @@ class HistoricalPricesRequest(BaseModel):
 
 # ── Response Schemas ──────────────────────────────────────────────────────────
 
+
 class OHLCVData(BaseModel):
     """OHLCV (Open, High, Low, Close, Volume) data point"""
+
     timestamp: datetime = Field(..., description="時間戳")
     open: float = Field(..., description="開盤價")
     high: float = Field(..., description="最高價")
@@ -40,6 +46,7 @@ class OHLCVData(BaseModel):
 
 class PriceData(BaseModel):
     """Single price data point"""
+
     symbol: str = Field(..., description="資產符號")
     price: float = Field(..., description="當前價格")
     currency: str = Field(default="USD", description="貨幣")
@@ -49,6 +56,7 @@ class PriceData(BaseModel):
 
 class CurrentPriceResponse(BaseModel):
     """Current gold price response"""
+
     symbol: str = Field(..., description="資產符號")
     price: float = Field(..., description="黃金價格（美元/盎司）")
     price_cny: float = Field(..., description="黃金價格（人民幣/克）")
@@ -64,6 +72,7 @@ class CurrentPriceResponse(BaseModel):
 
 class HistoricalPricesResponse(BaseModel):
     """Historical prices response"""
+
     symbol: str = Field(..., description="資產符號")
     interval: str = Field(..., description="時間間隔")
     data: list[OHLCVData] = Field(..., description="OHLCV 數據列表")
@@ -74,6 +83,7 @@ class HistoricalPricesResponse(BaseModel):
 
 class TechnicalIndicatorsResponse(BaseModel):
     """Technical indicators response"""
+
     symbol: str = Field(..., description="資產符號")
     timestamp: datetime = Field(..., description="時間戳")
     indicators: dict[str, Any] = Field(..., description="技術指標")
@@ -82,6 +92,7 @@ class TechnicalIndicatorsResponse(BaseModel):
 
 class PriceAlertResponse(BaseModel):
     """Price alert with current comparison"""
+
     symbol: str = Field(..., description="資產符號")
     current_price: float = Field(..., description="當前價格")
     target_price: float = Field(..., description="目標價格")

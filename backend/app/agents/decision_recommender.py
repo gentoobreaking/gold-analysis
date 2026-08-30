@@ -240,7 +240,7 @@ class DecisionRecommendationAgent(GoldAnalysisAgent):
                 decision_type=recommendation.decision_type.value,
                 reasoning_zh=reasoning["zh"],
             )
-        except Exception:  # noqa: BLE001,S110 - 解釋為輔助資訊，失敗不影響主決策
+        except Exception:
             pass
 
         return report

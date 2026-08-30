@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 class DataSource(str, Enum):
     """支持的數據源"""
+
     ALPHA_VANTAGE = "alpha_vantage"
     FINNHUB = "finnhub"
     FRED = "fred"
@@ -20,6 +21,7 @@ class DataSource(str, Enum):
 
 class SymbolType(str, Enum):
     """標的類型"""
+
     COMMODITY = "commodity"
     INDEX = "index"
     CURRENCY = "currency"
@@ -30,12 +32,13 @@ class SymbolType(str, Enum):
 
 class PriceData(BaseModel):
     """價格數據模型"""
+
     symbol: str = Field(..., description="標的代碼")
     price: float = Field(..., description="當前價格")
     currency: str = Field(default="USD", description="計價貨幣")
     timestamp: datetime = Field(..., description="數據時間戳")
     source: str = Field(..., description="數據來源")
-    
+
     # 可選字段
     change: float | None = Field(None, description="價格變動")
     change_percent: float | None = Field(None, description="變動百分比")
@@ -43,9 +46,9 @@ class PriceData(BaseModel):
     high: float | None = Field(None, description="最高價")
     low: float | None = Field(None, description="最低價")
     volume: float | None = Field(None, description="成交量")
-    
+
     class Config:
-        json_schema_extra = {  # noqa: RUF012
+        json_schema_extra = {
             "example": {
                 "symbol": "GC",
                 "price": 2034.50,
@@ -60,6 +63,7 @@ class PriceData(BaseModel):
 
 class HistoricalPriceData(BaseModel):
     """歷史價格數據模型"""
+
     symbol: str
     date: datetime
     open: float | None = None
@@ -73,6 +77,7 @@ class HistoricalPriceData(BaseModel):
 
 class EconomicIndicator(BaseModel):
     """經濟指標模型"""
+
     series_id: str = Field(..., description="FRED Series ID")
     name: str = Field(..., description="指標名稱")
     value: float = Field(..., description="當前值")
@@ -84,6 +89,7 @@ class EconomicIndicator(BaseModel):
 
 class MarketDataResponse(BaseModel):
     """市場數據響應模型"""
+
     success: bool
     data: dict | None = None
     error: str | None = None

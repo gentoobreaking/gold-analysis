@@ -2,6 +2,7 @@
 Report Service - 報告生成系統
 支援日報/周報/月報自動生成，PDF + Excel 導出
 """
+
 import io
 import logging
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class ReportType(str, Enum):
     """報告類型"""
+
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
@@ -28,6 +30,7 @@ class ReportType(str, Enum):
 @dataclass
 class ReportData:
     """報告數據容器"""
+
     report_type: str
     period_start: datetime
     period_end: datetime
@@ -184,16 +187,18 @@ class ReportService:
             by_type[t] = by_type.get(t, 0) + 1
             by_source[s] = by_source.get(s, 0) + 1
 
-            details.append({
-                "id": d.id,
-                "type": t,
-                "asset": d.asset,
-                "signal_strength": d.signal_strength,
-                "confidence": d.confidence,
-                "is_executed": d.is_executed,
-                "created_at": d.created_at.isoformat(),
-                "reason_zh": d.reason_zh,
-            })
+            details.append(
+                {
+                    "id": d.id,
+                    "type": t,
+                    "asset": d.asset,
+                    "signal_strength": d.signal_strength,
+                    "confidence": d.confidence,
+                    "is_executed": d.is_executed,
+                    "created_at": d.created_at.isoformat(),
+                    "reason_zh": d.reason_zh,
+                }
+            )
 
         return {
             "total": len(decisions),
@@ -253,7 +258,7 @@ class ReportService:
             f"# {data.title}",
             "",
             f"**生成時間**: {data.generated_at.strftime('%Y-%m-%d %H:%M:%S')} UTC",
-            f"**報告週期**: {data.period_start.strftime('%Y-%m-%d')} ~ {data.period_end.strftime('%Y-%m-%d')}",
+            f"**報告週期**: {data.period_start.strftime('%Y-%m-%d')} ~ {data.period_end.strftime('%Y-%m-%d')}",  # noqa: E501
             "",
             "---",
             "",
@@ -281,7 +286,9 @@ class ReportService:
                 lines.append(f"### {name}")
                 lines.append(f"- 初始資金: ${perf['initial_capital']:,.2f}")
                 lines.append(f"- 當前市值: ${perf['current_value']:,.2f}")
-                lines.append(f"- 未實現損益: ${perf['unrealized_pnl']:,.2f} ({perf['unrealized_pnl_pct']:+.2f}%)")
+                lines.append(
+                    f"- 未實現損益: ${perf['unrealized_pnl']:,.2f} ({perf['unrealized_pnl_pct']:+.2f}%)"  # noqa: E501
+                )
                 lines.append("")
 
         if data.alerts.get("total", 0) > 0:
@@ -323,7 +330,7 @@ class ReportService:
         md = self.generate_markdown(data)
 
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
         styles = getSampleStyleSheet()
         story = []
 
@@ -331,12 +338,12 @@ class ReportService:
         for line in md.split("\n"):
             line = line.strip()
             if not line or line.startswith("---"):
-                story.append(Spacer(1, 0.3*cm))
+                story.append(Spacer(1, 0.3 * cm))
             elif line.startswith("# "):
                 story.append(Paragraph(line[2:], styles["Title"]))
             elif line.startswith("## "):
                 story.append(Paragraph(line[3:], styles["Heading2"]))
-                story.append(Spacer(1, 0.2*cm))
+                story.append(Spacer(1, 0.2 * cm))
             elif line.startswith("### "):
                 story.append(Paragraph(line[4:], styles["Heading3"]))
             elif line.startswith("- "):
@@ -383,7 +390,12 @@ class ReportService:
         ws1.append(["黃金分析報告"])
         ws1.append(["報告類型", data.report_type])
         ws1.append(["報告標題", data.title])
-        ws1.append(["報告週期", f"{data.period_start.strftime('%Y-%m-%d')} ~ {data.period_end.strftime('%Y-%m-%d')}"])
+        ws1.append(
+            [
+                "報告週期",
+                f"{data.period_start.strftime('%Y-%m-%d')} ~ {data.period_end.strftime('%Y-%m-%d')}",  # noqa: E501
+            ]
+        )
         ws1.append(["生成時間", data.generated_at.strftime("%Y-%m-%d %H:%M:%S")])
         ws1.append([""])
 
@@ -414,12 +426,18 @@ class ReportService:
         ws2 = wb.create_sheet("決策明細")
         ws2.append(["ID", "類型", "資產", "信號強度", "信心度", "是否執行", "創建時間", "理由"])
         for d in data.decisions.get("details", []):
-            ws2.append([
-                d.get("id"), d.get("type"), d.get("asset"),
-                d.get("signal_strength"), d.get("confidence"),
-                "是" if d.get("is_executed") else "否",
-                d.get("created_at"), d.get("reason_zh", ""),
-            ])
+            ws2.append(
+                [
+                    d.get("id"),
+                    d.get("type"),
+                    d.get("asset"),
+                    d.get("signal_strength"),
+                    d.get("confidence"),
+                    "是" if d.get("is_executed") else "否",
+                    d.get("created_at"),
+                    d.get("reason_zh", ""),
+                ]
+            )
 
         # 格式化
         PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")

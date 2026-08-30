@@ -13,6 +13,7 @@ from .base import BaseDataSource, HistoricalData, MarketData
 
 class FREDAdapter(BaseDataSource):
     """FRED 數據源適配器"""
+
     # 常用 FRED series ID
     SERIES_MAP: ClassVar[dict[str, str]] = {
         # 利率
@@ -37,34 +38,34 @@ class FREDAdapter(BaseDataSource):
         # 實際利率
         "REAINTRATREARAT10Y": "Real 10-Year Treasury Rate",
     }
-    
+
     def __init__(self, api_key: str | None = None):
         settings = get_api_settings()
         super().__init__(
             api_key=api_key or get_api_key("fred"),
             base_url=settings.fred_base_url,
         )
-    
+
     @property
     def name(self) -> str:
         return "fred"
-    
+
     async def get_price(self, symbol: str) -> MarketData:
         """
         取得最新觀測值
-        
+
         FRED 的 series 並非實時價格，而是經濟數據
         對於黃金，自動映射到 GOLDAMGBD228NLBM
         對於美元指數，映射到 DTWEXBGS
         """
         series_id = self._resolve_series(symbol)
-        
+
         if not self.api_key or self.api_key == "":
             raise ValueError(
                 "FRED API key 未設定。請在 .env 設定 FRED_API_KEY。"
                 "免費註冊: https://fred.stlouisfed.org/docs/api/api_key.html"
             )
-        
+
         params = {
             "series_id": series_id,
             "api_key": self.api_key,
@@ -72,25 +73,25 @@ class FREDAdapter(BaseDataSource):
             "limit": 1,
             "sort_order": "desc",
         }
-        
+
         data = await self._request(
             method="GET",
             url=f"{self.base_url}/observations/get",
             params=params,
         )
-        
+
         observations = data.get("observations", [])
         if not observations:
             raise ValueError(f"FRED 未找到 series {series_id} 的數據")
-        
+
         latest = observations[0]
         date_str = latest["date"]
         value_str = latest["value"]
-        
+
         # FRED 使用 "." 表示缺失值
         if value_str == ".":
             raise ValueError(f"FRED series {series_id} 最新值為缺失數據")
-        
+
         return MarketData(
             symbol=series_id,
             value=float(value_str),
@@ -103,22 +104,20 @@ class FREDAdapter(BaseDataSource):
                 "realtime_end": latest.get("realtime_end"),
             },
         )
-    
+
     async def get_historical(
         self, symbol: str, start: datetime, end: datetime
     ) -> list[HistoricalData]:
         """
         取得歷史觀測值
-        
+
         對於利率和通脹數據，返回日/周/月頻率
         """
         series_id = self._resolve_series(symbol)
-        
+
         if not self.api_key or self.api_key == "":
-            raise ValueError(
-                "FRED API key 未設定。請在 .env 設定 FRED_API_KEY。"
-            )
-        
+            raise ValueError("FRED API key 未設定。請在 .env 設定 FRED_API_KEY。")
+
         params = {
             "series_id": series_id,
             "api_key": self.api_key,
@@ -126,83 +125,81 @@ class FREDAdapter(BaseDataSource):
             "observation_start": start.strftime("%Y-%m-%d"),
             "observation_end": end.strftime("%Y-%m-%d"),
         }
-        
+
         data = await self._request(
             method="GET",
             url=f"{self.base_url}/observations/get",
             params=params,
         )
-        
+
         observations = data.get("observations", [])
         results = []
-        
+
         for obs in observations:
             value_str = obs["value"]
             if value_str != ".":  # 跳過缺失值
                 results.append(
                     HistoricalData(
                         symbol=series_id,
-                        date=datetime.strptime(obs["date"], "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                        date=datetime.strptime(obs["date"], "%Y-%m-%d").replace(
+                            tzinfo=timezone.utc
+                        ),
                         close=float(value_str),
                         source=self.name,
                     )
                 )
-        
+
         return sorted(results, key=lambda x: x.date)
-    
+
     async def search_series(self, text: str, limit: int = 20) -> list[dict]:
         """
         搜索 FRED series
-        
+
         用於查找感興趣的經濟指標
         """
         if not self.api_key or self.api_key == "":
-            raise ValueError(
-                "FRED API key 未設定。請在 .env 設定 FRED_API_KEY。"
-            )
-        
+            raise ValueError("FRED API key 未設定。請在 .env 設定 FRED_API_KEY。")
+
         params = {
             "search_text": text,
             "api_key": self.api_key,
             "file_type": "json",
             "limit": limit,
         }
-        
+
         data = await self._request(
             method="GET",
             url=f"{self.base_url}/series/search",
             params=params,
         )
-        
+
         return data.get("seriess", [])
-    
+
     async def get_series_info(self, symbol: str) -> dict:
         """
         取得 series 詳細信息
         """
         if not self.api_key or self.api_key == "":
-            raise ValueError(
-                "FRED API key 未設定。請在 .env 設定 FRED_API_KEY。"
-            )
-        
+            raise ValueError("FRED API key 未設定。請在 .env 設定 FRED_API_KEY。")
+
         params = {
             "series_id": symbol,
             "api_key": self.api_key,
             "file_type": "json",
         }
-        
+
         data = await self._request(
             method="GET",
             url=f"{self.base_url}/series",
             params=params,
         )
-        
+
         return data.get("seriess", [{}])[0]
-    
+
     def _resolve_series(self, symbol: str) -> str:
         """
         解析 symbol 到 FRED series ID
-        
+
         支持別名:
         - GOLD/GC -> GOLDAMGBD228NLBM (倫敦金下午定盤價)
         - DXY/DX -> DTWEXBGS (美元指數 broad)
@@ -210,10 +207,10 @@ class FREDAdapter(BaseDataSource):
         - 10Y/10YR -> DGS10
         """
         symbol_upper = symbol.upper()
-        
+
         if symbol_upper in self.SERIES_MAP:
             return symbol_upper
-        
+
         aliases = {
             "GOLD": "GOLDAMGBD228NLBM",
             "GC": "GOLDAMGBD228NLBM",
@@ -231,5 +228,5 @@ class FREDAdapter(BaseDataSource):
             "FED_RATE": "FEDFUNDS",
             "FFR": "FEDFUNDS",
         }
-        
+
         return aliases.get(symbol_upper, symbol_upper)

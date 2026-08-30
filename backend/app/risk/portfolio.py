@@ -189,7 +189,7 @@ def factor_exposure(
     try:
         beta, *_ = np.linalg.lstsq(X, y, rcond=None)
     except np.linalg.LinAlgError:
-        return {f: 0.0 for f in names}
+        return dict.fromkeys(names, 0.0)
 
     alpha = float(beta[0])
     betas = {names[i]: float(beta[i + 1]) for i in range(len(names))}

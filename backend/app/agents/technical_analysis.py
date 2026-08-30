@@ -109,7 +109,7 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         # MACD：n 不足時縮短參數
         fast_p = min(12, max(5, n // 2))
         slow_p = min(26, max(fast_p + 1, n - 3))
-        sig_p  = min(9, max(3, n // 4))
+        sig_p = min(9, max(3, n // 4))
         macd = MACD(fast_period=fast_p, slow_period=slow_p, signal_period=sig_p)
         macd_line, signal_line, _histogram = macd.compute(closes)
         # Bollinger：週期 min(20, n-2)
@@ -120,7 +120,7 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         ma_s = min(20, max(3, n - 3))
         ma_l = min(60, max(ma_s + 3, n - 2))
         ma_short_vals = SMA(period=ma_s).compute(closes)
-        ma_long_vals  = SMA(period=ma_l).compute(closes)
+        ma_long_vals = SMA(period=ma_l).compute(closes)
 
         # 當前值
         rsi_current = float(rsi_vals[-1]) if not np.isnan(rsi_vals[-1]) else None
@@ -139,40 +139,60 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         # RSI 超買超賣
         rsi_signals = generate_rsi_signals(rsi_vals.tolist())
         for s in rsi_signals[-5:]:  # 只取最近 5 個
-            signals.append({
-                "type": "rsi",
-                "action": "buy" if s.signal_type.value == "oversold" else ("sell" if s.signal_type.value == "overbought" else "hold"),
-                "value": round(s.value, 2),
-                "description": f"RSI {s.signal_type.value.upper()}（{s.value:.1f}）",
-            })
+            signals.append(
+                {
+                    "type": "rsi",
+                    "action": "buy"
+                    if s.signal_type.value == "oversold"
+                    else ("sell" if s.signal_type.value == "overbought" else "hold"),
+                    "value": round(s.value, 2),
+                    "description": f"RSI {s.signal_type.value.upper()}（{s.value:.1f}）",
+                }
+            )
 
         # MACD 交叉
         macd_trend = determine_macd_trend(macd_vals := macd_line.tolist(), signal_line.tolist())
         crosses = detect_macd_cross(macd_vals, signal_line.tolist())
         if crosses:
             last_cross = crosses[-1]
-            signals.append({
-                "type": "macd_cross",
-                "action": "buy" if last_cross.cross_type == "golden" else "sell",
-                "description": f"MACD {'金叉' if last_cross.cross_type == 'golden' else '死叉'}",
-            })
+            signals.append(
+                {
+                    "type": "macd_cross",
+                    "action": "buy" if last_cross.cross_type == "golden" else "sell",
+                    "description": f"MACD {'金叉' if last_cross.cross_type == 'golden' else '死叉'}",  # noqa: E501
+                }
+            )
 
         # 布林帶位置
         if bb_percent_b is not None:
             if bb_percent_b > 1.0:
-                signals.append({"type": "bollinger", "action": "sell", "description": "價格突破布林上軌（超買區）"})
+                signals.append(
+                    {
+                        "type": "bollinger",
+                        "action": "sell",
+                        "description": "價格突破布林上軌（超買區）",
+                    }
+                )
             elif bb_percent_b < 0.0:
-                signals.append({"type": "bollinger", "action": "buy", "description": "價格跌破布林下軌（超賣區）"})
+                signals.append(
+                    {
+                        "type": "bollinger",
+                        "action": "buy",
+                        "description": "價格跌破布林下軌（超賣區）",
+                    }
+                )
 
         # 均線交叉
         ma_crosses = detect_crossover(ma_short_vals.tolist(), ma_long_vals.tolist())
         if ma_crosses:
             last_ma = ma_crosses[-1]
-            signals.append({
-                "type": "ma_cross",
-                "action": "buy" if last_ma.cross_type.value == "golden_cross" else "sell",
-                "description": f"{'MA20/MA60 金叉' if last_ma.cross_type.value == 'golden_cross' else 'MA20/MA60 死叉'}",
-            })
+            signals.append(
+                {
+                    "type": "ma_cross",
+                    "action": "buy" if last_ma.cross_type.value == "golden_cross" else "sell",
+                    "description": f"{'MA20/MA60 金叉' if last_ma.cross_type.value == 'golden_cross' else 'MA20/MA60 死叉'}",  # noqa: E501
+                }
+            )
 
         # ── 形態識別 ─────────────────────────────────────────────────────
 
@@ -180,12 +200,14 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
         if ohlc_df is not None:
             detected = detect_patterns(ohlc_df)
             for p in detected[-5:]:
-                pattern_signals.append({
-                    "type": "candlestick",
-                    "pattern": p.pattern_type.value,
-                    "direction": p.direction,
-                    "strength": p.strength,
-                })
+                pattern_signals.append(
+                    {
+                        "type": "candlestick",
+                        "pattern": p.pattern_type.value,
+                        "direction": p.direction,
+                        "strength": p.strength,
+                    }
+                )
             sr_levels = find_support_resistance(ohlc_df)
         else:
             sr_levels = []
@@ -231,8 +253,12 @@ class TechnicalAnalysisAgent(GoldAnalysisAgent):
                     "percent_b": round(bb_percent_b, 3) if bb_percent_b else None,
                 },
                 "ma": {
-                    "ma20": round(float(ma_short_vals[-1]), 2) if not np.isnan(ma_short_vals[-1]) else None,
-                    "ma60": round(float(ma_long_vals[-1]), 2) if not np.isnan(ma_long_vals[-1]) else None,
+                    "ma20": round(float(ma_short_vals[-1]), 2)
+                    if not np.isnan(ma_short_vals[-1])
+                    else None,
+                    "ma60": round(float(ma_long_vals[-1]), 2)
+                    if not np.isnan(ma_long_vals[-1])
+                    else None,
                 },
                 "macd_trend": macd_trend.value,
             },

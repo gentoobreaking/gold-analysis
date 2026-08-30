@@ -1,6 +1,7 @@
 """
 Portfolio Service - 投資組合管理業務邏輯
 """
+
 import logging
 from datetime import datetime, timezone
 
@@ -104,7 +105,9 @@ class PortfolioService:
         existing = await self._get_holding(portfolio_id, asset_type)
         if existing:
             total_qty = existing.quantity + quantity
-            existing.avg_cost = (existing.avg_cost * existing.quantity + avg_cost * quantity) / total_qty
+            existing.avg_cost = (
+                existing.avg_cost * existing.quantity + avg_cost * quantity
+            ) / total_qty
             existing.quantity = total_qty
             if current_price is not None:
                 existing.current_price = current_price
@@ -175,9 +178,7 @@ class PortfolioService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def _get_holding(
-        self, portfolio_id: int, asset_type: str
-    ) -> PortfolioHolding | None:
+    async def _get_holding(self, portfolio_id: int, asset_type: str) -> PortfolioHolding | None:
         stmt = select(PortfolioHolding).where(
             PortfolioHolding.portfolio_id == portfolio_id,
             PortfolioHolding.asset_type == asset_type,
@@ -222,16 +223,18 @@ class PortfolioService:
             invested += cost_basis
             current += market_val
 
-            positions.append({
-                "asset": h.asset_type,
-                "quantity": h.quantity,
-                "avg_cost": h.avg_cost,
-                "current_price": h.current_price or h.avg_cost,
-                "cost_basis": round(cost_basis, 2),
-                "market_value": round(market_val, 2),
-                "unrealized_pnl": round(unrealized_pnl, 2),
-                "unrealized_pnl_pct": round(pnl_pct, 2),
-            })
+            positions.append(
+                {
+                    "asset": h.asset_type,
+                    "quantity": h.quantity,
+                    "avg_cost": h.avg_cost,
+                    "current_price": h.current_price or h.avg_cost,
+                    "cost_basis": round(cost_basis, 2),
+                    "market_value": round(market_val, 2),
+                    "unrealized_pnl": round(unrealized_pnl, 2),
+                    "unrealized_pnl_pct": round(pnl_pct, 2),
+                }
+            )
 
         total_invested = invested + cash_balance
         total_gain_loss = current + cash_balance - total_invested

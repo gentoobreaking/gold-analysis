@@ -1,14 +1,17 @@
 """
 Authentication request/response schemas
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
 # ── Request Schemas ──────────────────────────────────────────────────────────
 
+
 class RegisterRequest(BaseModel):
     """User registration request"""
+
     username: str = Field(..., min_length=3, max_length=50, description="用戶名")
     email: EmailStr = Field(..., description="電子郵箱")
     password: str = Field(..., min_length=8, max_length=100, description="密碼")
@@ -17,23 +20,27 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     """User login request"""
+
     username: str = Field(..., description="用戶名或電子郵箱")
     password: str = Field(..., description="密碼")
 
 
 class RefreshTokenRequest(BaseModel):
     """Token refresh request"""
+
     refresh_token: str = Field(..., description="刷新令牌")
 
 
 class ChangePasswordRequest(BaseModel):
     """Change password request"""
+
     old_password: str = Field(..., description="舊密碼")
     new_password: str = Field(..., min_length=8, max_length=100, description="新密碼")
 
 
 class UpdateProfileRequest(BaseModel):
     """Update user profile request"""
+
     display_name: str | None = Field(None, max_length=100)
     bio: str | None = Field(None, max_length=500)
     avatar_url: str | None = Field(None, max_length=500)
@@ -43,8 +50,10 @@ class UpdateProfileRequest(BaseModel):
 
 # ── Response Schemas ──────────────────────────────────────────────────────────
 
+
 class TokenResponse(BaseModel):
     """JWT token response"""
+
     access_token: str = Field(..., description="訪問令牌")
     refresh_token: str = Field(..., description="刷新令牌")
     token_type: str = Field(default="bearer", description="令牌類型")
@@ -53,6 +62,7 @@ class TokenResponse(BaseModel):
 
 class TokenPayload(BaseModel):
     """JWT token payload"""
+
     sub: int = Field(..., description="用戶 ID")
     exp: datetime = Field(..., description="過期時間")
     type: str = Field(..., description="令牌類型")
@@ -60,6 +70,7 @@ class TokenPayload(BaseModel):
 
 class UserResponse(BaseModel):
     """User public profile response"""
+
     id: int
     username: str
     display_name: str | None
@@ -74,6 +85,7 @@ class UserResponse(BaseModel):
 
 class UserDetailResponse(UserResponse):
     """User detailed profile response"""
+
     email: EmailStr
     timezone: str
     language: str
@@ -87,16 +99,19 @@ class UserDetailResponse(UserResponse):
 
 class RegisterResponse(BaseModel):
     """Registration success response"""
+
     user: UserResponse
     message: str = "註冊成功"
 
 
 class LoginResponse(BaseModel):
     """Login success response"""
+
     user: UserDetailResponse
     tokens: TokenResponse
 
 
 class MessageResponse(BaseModel):
     """Simple message response"""
+
     message: str

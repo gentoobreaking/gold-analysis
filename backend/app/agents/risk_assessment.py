@@ -98,10 +98,18 @@ class RiskAssessmentAgent(GoldAnalysisAgent):
 
         # ── 風險指標 ─────────────────────────────────────────────────────
         volatility = calculate_volatility(returns.tolist())
-        var_95 = calculate_var_historical(returns.tolist(), confidence=0.95, portfolio_value=capital)
-        var_99 = calculate_var_historical(returns.tolist(), confidence=0.99, portfolio_value=capital)
-        var_param_95 = calculate_var_parametric(returns.tolist(), confidence=0.95, portfolio_value=capital)
-        var_cf_95 = calculate_var_cornish_fisher(returns.tolist(), confidence=0.95, portfolio_value=capital)
+        var_95 = calculate_var_historical(
+            returns.tolist(), confidence=0.95, portfolio_value=capital
+        )
+        var_99 = calculate_var_historical(
+            returns.tolist(), confidence=0.99, portfolio_value=capital
+        )
+        var_param_95 = calculate_var_parametric(
+            returns.tolist(), confidence=0.95, portfolio_value=capital
+        )
+        var_cf_95 = calculate_var_cornish_fisher(
+            returns.tolist(), confidence=0.95, portfolio_value=capital
+        )
         cvar_95 = calculate_cvar(returns.tolist(), confidence=0.95, portfolio_value=capital)
         sharpe = calculate_sharpe_ratio(returns.tolist())
         sortino = calculate_sortino_ratio(returns.tolist())
@@ -170,7 +178,7 @@ class RiskAssessmentAgent(GoldAnalysisAgent):
             },
             "var_breakdown": {
                 "var_95_pct": round(var_pct_val, 2),
-                "interpretation": f"在 95% 信心下，每日最大損失不超過 {var_pct_val:.2f}%（{var_95:.0f} 元）",
+                "interpretation": f"在 95% 信心下，每日最大損失不超過 {var_pct_val:.2f}%（{var_95:.0f} 元）",  # noqa: E501
             },
             "stop_loss": {
                 "stop_price": stop.stop_price,

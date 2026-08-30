@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # ─── 風險等級 ─────────────────────────────────────────────────────────────────
 
+
 class RiskLevel(str, Enum):
     VERY_LOW = "very_low"
     LOW = "low"
@@ -28,17 +29,19 @@ class RiskLevel(str, Enum):
 
 # ─── 止損策略 ─────────────────────────────────────────────────────────────────
 
+
 class StopLossStrategy(str, Enum):
-    VOLATILITY = "volatility"       # ATR/波動率止損
-    SUPPORT = "support"            # 支撐位止損
-    VAR = "var"                    # VaR 止損
-    TRAILING = "trailing"          # 追蹤止損
-    FIXED_PCT = "fixed_pct"        # 固定比例止損
+    VOLATILITY = "volatility"  # ATR/波動率止損
+    SUPPORT = "support"  # 支撐位止損
+    VAR = "var"  # VaR 止損
+    TRAILING = "trailing"  # 追蹤止損
+    FIXED_PCT = "fixed_pct"  # 固定比例止損
 
 
 @dataclass
 class StopLossResult:
     """止損結果"""
+
     stop_price: float
     strategy: StopLossStrategy
     atr_or_volatility: float | None
@@ -49,6 +52,7 @@ class StopLossResult:
 @dataclass
 class PositionResult:
     """倉位計算結果"""
+
     size: float
     units: float
     risk_per_unit: float
@@ -57,6 +61,7 @@ class PositionResult:
 
 
 # ─── ATR 計算 ─────────────────────────────────────────────────────────────────
+
 
 def _compute_atr(highs, lows, closes, period: int = 14) -> np.ndarray:
     """計算 ATR（True Range）"""
@@ -80,9 +85,10 @@ def _compute_atr(highs, lows, closes, period: int = 14) -> np.ndarray:
 
 # ─── 止損計算 ─────────────────────────────────────────────────────────────────
 
+
 def calculate_stop_loss(
     entry_price: float,
-    position_type: str,          # "long" 或 "short"
+    position_type: str,  # "long" 或 "short"
     closes: Sequence[float],
     highs: Sequence[float] | None = None,
     lows: Sequence[float] | None = None,
@@ -113,12 +119,12 @@ def calculate_stop_loss(
     Returns:
         StopLossResult
     """
-    recent = np.array(closes[-atr_period * 2:], dtype=np.float64)
+    recent = np.array(closes[-atr_period * 2 :], dtype=np.float64)
 
     if len(recent) >= atr_period and highs is not None and lows is not None:
-        highs_arr = np.array(highs[-len(recent):], dtype=np.float64)
-        lows_arr = np.array(lows[-len(recent):], dtype=np.float64)
-        closes_arr = np.array(closes[-len(recent):], dtype=np.float64)
+        highs_arr = np.array(highs[-len(recent) :], dtype=np.float64)
+        lows_arr = np.array(lows[-len(recent) :], dtype=np.float64)
+        closes_arr = np.array(closes[-len(recent) :], dtype=np.float64)
         atr = _compute_atr(highs_arr, lows_arr, closes_arr, atr_period)
         current_atr = float(atr[-1]) if not np.isnan(atr[-1]) else float(np.std(recent))
     else:
@@ -165,6 +171,7 @@ def calculate_stop_loss(
 
 # ─── 倉位計算 ─────────────────────────────────────────────────────────────────
 
+
 class PositionSizer:
     """
     倉位計算器
@@ -198,8 +205,10 @@ class PositionSizer:
         """
         if avg_loss == 0 or win_rate >= 1.0:
             return PositionResult(
-                size=0.0, units=0.0,
-                risk_per_unit=0.0, total_risk=0.0,
+                size=0.0,
+                units=0.0,
+                risk_per_unit=0.0,
+                total_risk=0.0,
                 method="kelly",
             )
 
@@ -246,8 +255,10 @@ class PositionSizer:
         risk_per_unit = atr * 2  # 止損距離
         if risk_per_unit == 0:
             return PositionResult(
-                size=0.0, units=0.0,
-                risk_per_unit=0.0, total_risk=0.0,
+                size=0.0,
+                units=0.0,
+                risk_per_unit=0.0,
+                total_risk=0.0,
                 method="atr",
             )
 
@@ -285,8 +296,10 @@ class PositionSizer:
         risk_per_unit = abs(entry_price - stop_price)
         if risk_per_unit == 0:
             return PositionResult(
-                size=0.0, units=0.0,
-                risk_per_unit=0.0, total_risk=0.0,
+                size=0.0,
+                units=0.0,
+                risk_per_unit=0.0,
+                total_risk=0.0,
                 method="fixed_risk",
             )
 
@@ -314,6 +327,7 @@ def calculate_position_size(**kwargs) -> PositionResult:
 
 
 # ─── 風險評估 ─────────────────────────────────────────────────────────────────
+
 
 def assess_risk_level(
     var_pct: float,
