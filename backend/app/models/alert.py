@@ -21,6 +21,7 @@ class AlertType(str, Enum):
 class Alert(Base):
     """Alert model for price or indicator notifications"""
 
+    __table_args__ = {"schema": "core"}
     __tablename__ = "alerts"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

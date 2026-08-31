@@ -101,6 +101,45 @@ async def get_historical_prices(
         ) from None
 
 
+
+@router.get("/history", response_model=HistoricalPricesResponse)
+async def get_price_history(
+    symbol: str = Query(default="GOLD", description="資產符號"),
+    days: int = Query(default=30, ge=1, le=3650, description="獲取最近 N 天的歷史數據"),
+    current_user: User | None = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> HistoricalPricesResponse:
+    """
+    獲取最近 N 天的歷史價格數據。
+    - **symbol**: 資產符號（默前 GOLD）
+    - **days**: 獲取最近 N 天的數據（默前 30 天）
+    """
+    if symbol.upper() != "GOLD":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="目前僅支持 GOLD 符號",
+        ) from None
+
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(days=days)
+
+    price_service = PriceService(db)
+    try:
+        data = await price_service.get_historical_prices(
+            symbol=symbol.upper(),
+            interval="1d",
+            start_time=start_time,
+            end_time=end_time,
+            limit=500,
+        )
+        return HistoricalPricesResponse(**data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from None
+
+
 @router.get("/indicators", response_model=TechnicalIndicatorsResponse)
 async def get_technical_indicators(
     symbol: str = Query(default="GOLD", description="資產符號"),

@@ -50,6 +50,7 @@ async def create_alert(
     return AlertResponse.model_validate(alert)
 
 
+@router.get("/", response_model=AlertListResponse)
 async def list_alerts(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),

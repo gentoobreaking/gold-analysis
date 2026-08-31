@@ -105,6 +105,9 @@ async def init_postgres() -> None:
 
     engine = get_postgres_engine()
     async with engine.begin() as conn:
+        # Ensure core schema exists (tables like core.daily_prices, core.alerts, core.decisions)
+        from sqlalchemy import text
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS core"))
         await conn.run_sync(Base.metadata.create_all)
     print("✅ PostgreSQL initialized")
 

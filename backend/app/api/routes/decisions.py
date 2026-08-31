@@ -17,7 +17,7 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.services.decision_service import DecisionService
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -112,34 +112,22 @@ async def list_decisions(
     - **decision_type**: 按決策類型過濾
     - **is_executed**: 按執行狀態過濾
     """
-    query = select(Decision).where(Decision.user_id == (current_user.id if current_user else 0))
-
-    # Apply filters
-    if symbol:
-        query = query.where(Decision.asset == symbol.upper())
-    if decision_type:
-        query = query.where(Decision.decision_type == decision_type)
-    if is_executed is not None:
-        query = query.where(Decision.is_executed == is_executed)
-
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Paginate
-    query = query.order_by(Decision.created_at.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
-
-    result = await db.execute(query)
-    decisions = result.scalars().all()
-
-    return DecisionListResponse(
-        items=[DecisionResponse.model_validate(d) for d in decisions],
-        total=total,
+    decision_service = DecisionService(db)
+    user_id = current_user.id if current_user else 0
+    result = await decision_service.get_decisions(
+        user_id=user_id,
+        symbol=symbol,
+        decision_type=decision_type,
+        is_executed=is_executed,
         page=page,
         page_size=page_size,
-        pages=(total + page_size - 1) // page_size if total > 0 else 0,
+    )
+    return DecisionListResponse(
+        items=[DecisionResponse.model_validate(d) for d in result["decisions"]],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+        pages=result["pages"],
     )
 
 

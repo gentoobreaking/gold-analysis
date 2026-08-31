@@ -11,7 +11,7 @@ from typing import Any
 
 from app.models.decision import Decision, DecisionSource, DecisionType
 from app.services.price_service import PriceService
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -243,6 +243,45 @@ class DecisionService:
         await self.session.commit()
         await self.session.refresh(decision)
         return decision
+
+    async def get_decisions(
+        self,
+        user_id: int | None = None,
+        symbol: str | None = None,
+        decision_type: str | None = None,
+        is_executed: bool | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """列出決策記錄，支援過濾和分頁。"""
+        stmt = select(Decision)
+        if user_id is not None:
+            stmt = stmt.where(Decision.user_id == user_id)
+        if symbol:
+            stmt = stmt.where(Decision.asset == symbol.upper())
+        if decision_type:
+            stmt = stmt.where(Decision.decision_type == decision_type)
+        if is_executed is not None:
+            stmt = stmt.where(Decision.is_executed == is_executed)
+
+        # Count total
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await self.session.execute(count_stmt)
+        total = count_result.scalar() or 0
+
+        # Paginate
+        stmt = stmt.order_by(Decision.created_at.desc())
+        stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+        result = await self.session.execute(stmt)
+        decisions = result.scalars().all()
+
+        return {
+            "decisions": decisions,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "pages": (total + page_size - 1) // page_size if total > 0 else 0,
+        }
 
     async def get_decision_stats(self, user_id: int) -> dict[str, Any]:
         """獲取決策統計。"""

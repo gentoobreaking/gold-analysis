@@ -124,6 +124,12 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 初始化 PostgreSQL 資料表
+    try:
+        from app.db.config import init_postgres
+        await init_postgres()
+    except Exception:
+        logger.exception("PostgreSQL 初始化失敗")
     # 啟動排程器
     scheduler.add_job(
         run_monitor_job,

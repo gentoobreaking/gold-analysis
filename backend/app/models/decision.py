@@ -37,6 +37,7 @@ class Decision(Base):
     Decision model - stores AI trading decisions
     """
 
+    __table_args__ = {"schema": "core"}
     __tablename__ = "decisions"
 
     # Primary key
