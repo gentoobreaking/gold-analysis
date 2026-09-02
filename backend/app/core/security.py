@@ -26,12 +26,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
+def _ensure_str_sub(data: dict[str, Any]) -> dict[str, Any]:
+    """JWT spec requires 'sub' to be a string; convert int user_id."""
+    if "sub" in data and not isinstance(data["sub"], str):
+        data["sub"] = str(data["sub"])
+    return data
+
+
 def create_access_token(
     data: dict[str, Any],
     expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT access token."""
-    to_encode = data.copy()
+    to_encode = _ensure_str_sub(data.copy())
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -52,7 +59,7 @@ def create_refresh_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     """Create a JWT refresh token."""
-    to_encode = data.copy()
+    to_encode = _ensure_str_sub(data.copy())
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
