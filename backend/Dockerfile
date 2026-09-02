@@ -38,9 +38,9 @@ RUN addgroup -S -g 1000 appgroup && \
     adduser -D -S -u 1000 -G appgroup appuser && \
     apk add --no-cache \
         libpq \
+        libgomp \
+        libstdc++ \
         curl
-
-WORKDIR /app
 
 # Copy virtualenv from deps stage
 COPY --from=deps /app/.venv /app/.venv
