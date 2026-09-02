@@ -1,0 +1,95 @@
+name: gold-analysis
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Backend — FastAPI / uvicorn service
+  # ─────────────────────────────────────────────────────────────────────────────
+  gold-analysis-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gold-analysis-backend
+    hostname: gold-analysis-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override DB URLs for Docker-internal networking
+      DATABASE_URL: >-
+        postgresql+asyncpg://gold:goldpass@postgres:5432/gold_analysis
+      REDIS_URL: redis://redis:6379/0
+      INFLUXDB_URL: http://influxdb:8086
+    ports:
+      - "8000:8000"
+    depends_on:
+      - gold-analysis-postgres
+      - gold-analysis-redis
+      - gold-analysis-influxdb
+    volumes:
+      - ./backend/app/migrations:/app/app/migrations
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Frontend — React / Vite production server (served by nginx)
+  # ─────────────────────────────────────────────────────────────────────────────
+  gold-analysis-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gold-analysis-frontend
+    hostname: gold-analysis-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - gold-analysis-backend
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PostgreSQL — persistent price & schema storage
+  # ─────────────────────────────────────────────────────────────────────────────
+  gold-analysis-postgres:
+    image: postgres:16-alpine
+    container_name: gold-analysis-postgres
+    hostname: gold-analysis-postgres
+    environment:
+      POSTGRES_USER: gold
+      POSTGRES_PASSWORD: goldpass
+      POSTGRES_DB: gold_analysis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Redis — rate-limiting, caching, job queue
+  # ─────────────────────────────────────────────────────────────────────────────
+  gold-analysis-redis:
+    image: redis:7-alpine
+    container_name: gold-analysis-redis
+    hostname: gold-analysis-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # InfluxDB — time-series market data
+  # ─────────────────────────────────────────────────────────────────────────────
+  gold-analysis-influxdb:
+    image: influxdb:2.7-alpine
+    container_name: gold-analysis-influxdb
+    hostname: gold-analysis-influxdb
+    environment:
+      INFLUXDB_DB: market-data
+      INFLUXDB_ORG: gold-analysis
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  influxdb_data:
