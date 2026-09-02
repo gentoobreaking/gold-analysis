@@ -14,19 +14,21 @@ services:
       - ./backend/.env
     environment:
       # Override DB URLs for Docker-internal networking
+      # Connect to shared tw-quant-db PostgreSQL (twquant_shared)
       DATABASE_URL: >-
-        postgresql+asyncpg://gold:goldpass@postgres:5432/gold_analysis
-      REDIS_URL: redis://redis:6379/0
-      INFLUXDB_URL: http://influxdb:8086
+        postgresql+asyncpg://twquant:twquant-secret-password@tw-quant-db:5432/twquant_shared
+      REDIS_URL: redis://gold-analysis-redis:6379/0
+      INFLUXDB_URL: http://gold-analysis-influxdb:8086
     ports:
       - "8000:8000"
     depends_on:
-      - gold-analysis-postgres
       - gold-analysis-redis
       - gold-analysis-influxdb
     volumes:
       - ./backend/app/migrations:/app/app/migrations
     restart: unless-stopped
+    networks:
+      - tw-quant-network
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Frontend — React / Vite production server (served by nginx)
@@ -42,23 +44,8 @@ services:
     depends_on:
       - gold-analysis-backend
     restart: unless-stopped
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # PostgreSQL — persistent price & schema storage
-  # ─────────────────────────────────────────────────────────────────────────────
-  gold-analysis-postgres:
-    image: postgres:16-alpine
-    container_name: gold-analysis-postgres
-    hostname: gold-analysis-postgres
-    environment:
-      POSTGRES_USER: gold
-      POSTGRES_PASSWORD: goldpass
-      POSTGRES_DB: gold_analysis
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+    networks:
+      - tw-quant-network
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Redis — rate-limiting, caching, job queue
@@ -72,6 +59,8 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    networks:
+      - tw-quant-network
 
   # ─────────────────────────────────────────────────────────────────────────────
   # InfluxDB — time-series market data
@@ -88,8 +77,14 @@ services:
     volumes:
       - influxdb_data:/var/lib/influxdb2
     restart: unless-stopped
+    networks:
+      - tw-quant-network
 
 volumes:
-  postgres_data:
   redis_data:
   influxdb_data:
+
+networks:
+  tw-quant-network:
+    name: tw-quant-network
+    external: true
