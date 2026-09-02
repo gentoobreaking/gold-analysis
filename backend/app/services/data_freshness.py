@@ -5,7 +5,7 @@
 避免模型/決策在陳舊資料上靜默運作（補強 T054 真實資料健康度）。
 
 設計要點：
-- 來源註冊表含 SLA 閾值（price_history ≤ 5 分、market_sentiment ≤ 1 天）。
+- 來源註冊表含 SLA 閾值（價格來源 core.daily_prices ≤ 2 天、market_sentiment ≤ 1 天）。
 - 區分三種狀態：fresh / stale（真實資料過期，告警）/ unavailable（來源不可用，不視為 stale 告警）。
 - mock 模式下（sentiment 來源標記 source='mock'）因時間戳為即時合成值，不告警，僅標註 is_mock。
 - 同一來源連續 stale 時做簡易節流（每 source 僅於狀態首次進入 stale 或每 alert_cooldown 秒後再報）。
@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from app.core.config import get_core_settings
-from app.services.price_data import fetch_latest_date
+from app.db.config import get_db_session
 from app.tools.data_tools import DataTools
 
 logger = logging.getLogger(__name__)
@@ -58,10 +58,23 @@ def _parse_ts(value: str) -> datetime | None:
             return None
 
 
-def _price_fetcher() -> tuple[str | None, bool]:
-    """price_history 最後更新：SQLite 最大 date 欄位；真實資料（非 mock）。"""
-    d = fetch_latest_date("GOLD")
-    return d, False
+async def _price_fetcher() -> tuple[str | None, bool]:
+    """core.daily_prices 最後更新：PostgreSQL MAX(trade_date)；真實資料。"""
+    from sqlalchemy import select, func
+    from app.models.daily_price import DailyPrice
+    async for session in get_db_session():
+        try:
+            result = await session.execute(
+                select(func.max(DailyPrice.trade_date)).where(DailyPrice.symbol == "GOLD")
+            )
+            max_date = result.scalar()
+            if max_date is not None:
+                return max_date.isoformat(), False
+            return None, False
+        except Exception as e:
+            logger.warning("daily_prices freshness check failed: %s", e)
+            return None, False
+    return None, False
 
 
 async def _sentiment_fetcher() -> tuple[str | None, bool]:
@@ -82,8 +95,8 @@ class DataFreshnessMonitor:
 
     def __init__(self) -> None:
         self._sources: dict[str, dict] = {
-            "price_history": {
-                "sla_seconds": 5 * 60,
+            "daily_prices": {
+                "sla_seconds": 2 * 24 * 60 * 60,  # GOLD 為日結資料，SLA 2 天
                 "fetcher": _price_fetcher,
             },
             "market_sentiment": {
