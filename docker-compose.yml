@@ -8,6 +8,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: gold-analysis-backend:latest
     container_name: gold-analysis-backend
     hostname: gold-analysis-backend
     env_file:
@@ -37,6 +38,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: gold-analysis-frontend:latest
     container_name: gold-analysis-frontend
     hostname: gold-analysis-frontend
     ports:
